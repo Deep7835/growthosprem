@@ -11,7 +11,7 @@ export function calendarSettings(query: Query, opts: { timeZone: string; request
   const now = zonedParts(new Date(opts.requestTime), opts.timeZone);
   const today = isoDate(now);
   const anchor = parseDate(one("date")) ?? { year: now.year, month: now.month, day: now.day };
-  const plain = Object.fromEntries(Object.entries(query).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "content"));
+  const plain = Object.fromEntries(Object.entries(query).filter((e): e is [string, string] => typeof e[1] === "string" && e[0] !== "content" && e[0] !== "task"));
   return {
     view,
     anchor,

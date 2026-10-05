@@ -42,7 +42,7 @@ export async function deliver(tx: Tx, userIds: string[], e: NotificationEvent): 
   const rows = people.flatMap((userId) => {
     const c = channels.get(userId)!;
     const email = c.email && !e.noEmail;
-    if (!c.inApp && !email) return [];
+    if (!c.inApp && !email && !c.push) return [];
     return [
       {
         orgId: e.orgId,
@@ -54,6 +54,7 @@ export async function deliver(tx: Tx, userIds: string[], e: NotificationEvent): 
         href: e.href ?? null,
         inApp: c.inApp,
         emailStatus: email ? "pending" : null,
+        pushStatus: c.push ? "pending" : null,
         key: e.key ?? null,
       },
     ];

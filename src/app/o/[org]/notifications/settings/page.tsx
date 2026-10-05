@@ -2,7 +2,9 @@ import { NotificationSettings } from "@/components/notifications/NotificationSet
 import { effectivePrefs, TYPES } from "@/lib/notifications";
 import { loadSettings } from "@/server/notifications";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
-import { applyToOtherSpaces, savePreferences, setDigest, followDefaults } from "../actions";
+import { PushToggle } from "@/components/notifications/PushToggle";
+import { vapidKeys } from "@/lib/push";
+import { applyToOtherSpaces, followDefaults, removePushSubscription, savePreferences, savePushSubscription, sendTestPush, setDigest } from "../actions";
 
 export const metadata = { title: "Notification settings" };
 
@@ -32,6 +34,14 @@ export default async function NotificationSettingsPage({ params, searchParams }:
       resetScope={scope === "default" ? null : followDefaults.bind(null, org, scope)}
       applyToOthers={scope === "default" ? null : applyToOtherSpaces.bind(null, org, scope)}
       setDigest={setDigest.bind(null, org)}
+      push={
+        <PushToggle
+          publicKey={vapidKeys()?.publicKey ?? null}
+          save={savePushSubscription.bind(null, org)}
+          remove={removePushSubscription.bind(null, org)}
+          test={sendTestPush.bind(null, org)}
+        />
+      }
     />
   );
 }

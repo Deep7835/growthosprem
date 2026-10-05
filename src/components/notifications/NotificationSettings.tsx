@@ -22,6 +22,8 @@ export function NotificationSettings(props: {
   resetScope: (() => Promise<void>) | null;
   applyToOthers: (() => Promise<void>) | null;
   setDigest: (on: boolean, timeZone: string) => Promise<void>;
+  /** The browser notifications section (NT-03). */
+  push: React.ReactNode;
 }) {
   const [prefs, setPrefs] = useState(props.prefs);
   // Take the server's table when it changes (Use default, Apply to other spaces).
@@ -127,6 +129,9 @@ export function NotificationSettings(props: {
                 <th scope="col" className="w-24 px-2 py-2.5 text-center font-semibold">
                   Email
                 </th>
+                <th scope="col" className="w-24 px-2 py-2.5 text-center font-semibold">
+                  Browser
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line-soft">
@@ -157,6 +162,9 @@ export function NotificationSettings(props: {
                     <td className="px-2 text-center">
                       <input type="checkbox" aria-label={`${t.label} by email`} checked={prefs[t.id].email} onChange={(e) => toggle(t.id, "email", e.target.checked)} className="size-4" />
                     </td>
+                    <td className="px-2 text-center">
+                      <input type="checkbox" aria-label={`${t.label} as a browser notification`} checked={prefs[t.id].push} onChange={(e) => toggle(t.id, "push", e.target.checked)} className="size-4" />
+                    </td>
                   </tr>
                 );
               })}
@@ -168,6 +176,8 @@ export function NotificationSettings(props: {
           {!props.emailReady && " Email sending isn’t set up on this server yet, so nothing is emailed for now."}
         </p>
       </section>
+
+      {props.push}
 
       <section aria-labelledby="digest-heading" className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4">
         <h2 id="digest-heading" className="font-semibold">

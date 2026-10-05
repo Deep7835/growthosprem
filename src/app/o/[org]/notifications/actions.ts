@@ -1,8 +1,12 @@
 "use server";
 
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getSystemDb } from "@/db";
+import { pushSubscriptions } from "@/db/schema";
 import { cleanPrefs } from "@/lib/notifications";
+import { pushTo } from "@/notifications/push";
 import { applyToSpaces, resetToDefault, saveDigest, saveTypes, setCleared, setRead } from "@/server/notifications";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
 
@@ -65,4 +69,37 @@ export async function setDigest(org: string, on: boolean, timeZone: string) {
   }
   await saveDigest(ctx, z.boolean().parse(on), zone);
   revalidatePath(`/o/${org}/notifications/settings`);
+}
+
+/* ---------- Browser push (NT-03) ---------- */
+
+const subscription = z.object({
+  endpoint: z.url().max(1000).refine((u) => u.startsWith("https://"), "Push endpoints are https."),
+  keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(4).max(100) }),
+});
+
+/** Saves this browser's subscription for the signed-in person (a browser belongs to one person at a time). */
+export async function savePushSubscription(org: string, input: unknown, userAgent: string) {
+  const ctx = await getOrgContext(org);
+  const sub = subscription.parse(input);
+  const db = await getSystemDb();
+  await db
+    .insert(pushSubscriptions)
+    .values({ userId: ctx.user.id, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth, userAgent: userAgent.slice(0, 200) })
+    .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: { userId: ctx.user.id, p256dh: sub.keys.p256dh, auth: sub.keys.auth, userAgent: userAgent.slice(0, 200) } });
+}
+
+export async function removePushSubscription(org: string, endpoint: string) {
+  const ctx = await getOrgContext(org);
+  const db = await getSystemDb();
+  await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.userId, ctx.user.id), eq(pushSubscriptions.endpoint, z.string().max(1000).parse(endpoint))));
+}
+
+/** Sends a test notification to this browser. Returns false if it couldn't be delivered. */
+export async function sendTestPush(org: string, endpoint: string): Promise<boolean> {
+  const ctx = await getOrgContext(org);
+  const db = await getSystemDb();
+  const subs = await db.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.userId, ctx.user.id), eq(pushSubscriptions.endpoint, z.string().max(1000).parse(endpoint))));
+  const sent = await pushTo(db, subs, { title: "Browser notifications are on", body: "This is how Growth OS will tell you when something needs you.", url: `/o/${org}/notifications`, tag: "test" });
+  return sent > 0;
 }

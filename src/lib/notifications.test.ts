@@ -7,7 +7,7 @@ describe("notification types", () => {
     expect(typeOf("mention")).toBe("comments");
     expect(typeOf("review_changes")).toBe("review");
     expect(typeOf("something_new")).toBe("system");
-    expect(kindsOf("tasks").sort()).toEqual(["task_due", "task_overdue"]);
+    expect(kindsOf("tasks").sort()).toEqual(["task_assigned", "task_due", "task_overdue"]);
   });
 });
 
@@ -17,10 +17,12 @@ describe("preferences", () => {
   });
 
   it("uses the space's setting, then the person's default, then ours", () => {
-    expect(channelsFor("publishing", {})).toEqual({ inApp: true, email: false });
-    expect(channelsFor("publishing", { base: { publishing: { inApp: false, email: true } } })).toEqual({ inApp: false, email: true });
-    expect(channelsFor("publishing", { base: { publishing: { inApp: false, email: true } }, space: { publishing: { inApp: true, email: false } } })).toEqual({ inApp: true, email: false });
-    expect(effectivePrefs({}).action_required).toEqual({ inApp: true, email: true });
+    expect(channelsFor("publishing", {})).toEqual({ inApp: true, email: false, push: false });
+    expect(channelsFor("publishing", { base: { publishing: { inApp: false, email: true, push: true } } })).toEqual({ inApp: false, email: true, push: true });
+    expect(channelsFor("publishing", { base: { publishing: { inApp: false, email: true } }, space: { publishing: { inApp: true, email: false } } })).toEqual({ inApp: true, email: false, push: false });
+    expect(effectivePrefs({}).action_required).toEqual({ inApp: true, email: true, push: true });
+    // Tables saved before push existed get the default for push.
+    expect(channelsFor("review", { base: { review: { inApp: true, email: false } } })).toEqual({ inApp: true, email: false, push: true });
   });
 });
 

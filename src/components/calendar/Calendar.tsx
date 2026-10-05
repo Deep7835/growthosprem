@@ -74,15 +74,19 @@ export function Calendar(props: Props) {
       else q.set(k, v);
     }
     q.delete("content");
+    q.delete("task");
     const s = q.toString();
     return s ? `${basePath}?${s}` : basePath;
   };
 
+  // Posts open their panel; tasks open the task panel (TK-01), in the event's space.
   const openHref = (e: CalendarEvent) => {
-    const id = e.contentId;
+    const id = e.type === "task" ? e.id : e.contentId;
     if (!id) return null;
     const q = new URLSearchParams(scope === "space" ? props.query : { view, date: props.date });
-    q.set("content", id);
+    q.delete("content");
+    q.delete("task");
+    q.set(e.type === "task" ? "task" : "content", id);
     return scope === "space" ? `${basePath}?${q}` : `/o/${org}/s/${e.space.slug}/calendar?${q}`;
   };
 

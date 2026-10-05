@@ -1,7 +1,7 @@
 // Identity linking and workspace creation. Free of Next.js imports so they can be tested.
 import { randomUUID } from "node:crypto";
 import { and, eq, like } from "drizzle-orm";
-import { STATUS_TEMPLATES, type StatusTemplateKey } from "@/lib/status-templates";
+import { STATUS_TEMPLATES, TASK_STATUSES, type StatusTemplateKey } from "@/lib/status-templates";
 import { withOrg, type Db } from "./core";
 import * as s from "./schema";
 
@@ -110,6 +110,9 @@ export async function createWorkspace(db: Db, input: WorkspaceInput) {
         position,
         autopostEligible: autopost ?? false,
       })),
+    );
+    await tx.insert(s.statuses).values(
+      TASK_STATUSES.map(([name, color, category], i) => ({ orgId, spaceId: space.id, name, color, category, appliesTo: "task" as const, position: 100 + i })),
     );
     return { orgId, orgSlug: slug, spaceSlug: space.slug };
   });

@@ -4,6 +4,8 @@ import { withOrg } from "@/db";
 import { contentItems, memberships, socialAccounts, statuses } from "@/db/schema";
 import { EmptyState, StatusDot } from "@/components/ui";
 import { formatSchedule } from "@/lib/format";
+import { formatDue } from "@/lib/tasks";
+import { overviewTasks } from "@/server/tasks";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
 
 export const metadata = { title: "Overview" };
@@ -66,6 +68,27 @@ export default async function OverviewPage({ params }: PageProps<"/o/[org]/overv
     { label: "Schedule a first post", done: data.upcoming.length > 0 },
   ];
   const doneCount = checklist.filter((c) => c.done).length;
+  const work = await overviewTasks(ctx.org.id, spaceIds, ctx.user.id, new Date(ctx.requestTime));
+  const taskLink = (spaceId: string, id: string) => `/o/${org}/s/${spaceById.get(spaceId)?.slug}/board?task=${id}`;
+  const statusTotal = Math.max(1, ...work.byStatus.map((b) => b.count));
+  const taskList = (rows: typeof work.overdue, empty: string) =>
+    rows.length === 0 ? (
+      <p className="mt-3 text-sm text-muted">{empty}</p>
+    ) : (
+      <ul className="mt-3 flex flex-col divide-y divide-line-soft">
+        {rows.map((t) => (
+          <li key={t.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+            <Link href={taskLink(t.spaceId, t.id)} className="min-w-0 truncate font-semibold hover:underline">
+              {t.title}
+            </Link>
+            <span className="shrink-0 text-right text-muted">
+              {t.dueAt ? formatDue(t.dueAt, spaceById.get(t.spaceId)?.timezone ?? ctx.org.timezone) : "No due date"}
+              <span className="block text-xs">{spaceById.get(t.spaceId)?.name}{t.assignee ? ` · ${t.assignee}` : ""}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
   const link = (spaceId: string, id: string) => `/o/${org}/s/${spaceById.get(spaceId)?.slug}/board?content=${id}`;
 
   return (
@@ -146,6 +169,72 @@ export default async function OverviewPage({ params }: PageProps<"/o/[org]/overv
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+      </div>
+
+      {/* Task widgets (TK-02, OV-03) */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-line bg-surface p-5">
+          <h2 className="font-semibold">Assigned to me</h2>
+          {taskList(work.mine, "No open tasks for you.")}
+        </section>
+        <section className="rounded-2xl border border-line bg-surface p-5">
+          <h2 className="font-semibold">
+            Overdue tasks {work.overdue.length > 0 && <span className="font-normal text-danger">· {work.overdue.length}</span>}
+          </h2>
+          {taskList(work.overdue, "Nothing overdue.")}
+        </section>
+        <section className="rounded-2xl border border-line bg-surface p-5">
+          <h2 className="font-semibold">Tasks by status</h2>
+          {work.byStatus.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">No tasks yet.</p>
+          ) : (
+            <ul className="mt-3 flex flex-col gap-2.5">
+              {work.byStatus.map((b) => (
+                <li key={b.name} className="grid grid-cols-[110px_1fr_32px] items-center gap-3 text-sm">
+                  <span className="flex items-center gap-2 truncate">
+                    <StatusDot color={b.color} />
+                    {b.name}
+                  </span>
+                  <span className="h-2 overflow-hidden rounded-full bg-line-soft" aria-hidden>
+                    <span className="block h-full rounded-full" style={{ width: `${(b.count / statusTotal) * 100}%`, background: b.color }} />
+                  </span>
+                  <span className="text-right font-semibold tabular-nums">{b.count}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="rounded-2xl border border-line bg-surface p-5">
+          <h2 className="font-semibold">Open tasks by person</h2>
+          {work.byAssignee.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">Everyone’s clear.</p>
+          ) : (
+            <table className="mt-3 w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wider text-muted">
+                  <th scope="col" className="pb-1.5 font-semibold">
+                    Person
+                  </th>
+                  <th scope="col" className="pb-1.5 text-right font-semibold">
+                    Open
+                  </th>
+                  <th scope="col" className="pb-1.5 text-right font-semibold">
+                    Overdue
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line-soft">
+                {work.byAssignee.map((a) => (
+                  <tr key={a.name}>
+                    <td className="py-2">{a.name}</td>
+                    <td className="py-2 text-right tabular-nums">{a.open}</td>
+                    <td className={`py-2 text-right tabular-nums ${a.overdue ? "font-semibold text-danger" : "text-muted"}`}>{a.overdue}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </section>
       </div>

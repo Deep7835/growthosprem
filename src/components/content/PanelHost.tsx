@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getContentDetail } from "@/server/content";
 import { getPublishView } from "@/server/publishing";
+import { tasksForPost } from "@/server/tasks";
 import type { SpaceContext } from "@/server/tenancy";
 import { ContentPanel } from "./ContentPanel";
 
@@ -8,7 +9,7 @@ import { ContentPanel } from "./ContentPanel";
 export async function PanelHost({ ctx, org, space, contentId, closeHref }: { ctx: SpaceContext; org: string; space: string; contentId: string | null; closeHref: string }) {
   if (!contentId) return null;
   if (!/^[0-9a-f-]{36}$/.test(contentId)) notFound();
-  const [detail, publishing] = await Promise.all([getContentDetail(ctx, contentId), getPublishView(ctx, contentId)]);
+  const [detail, publishing, postTasks] = await Promise.all([getContentDetail(ctx, contentId), getPublishView(ctx, contentId), tasksForPost(ctx, contentId)]);
   if (!detail || !publishing) notFound();
   return (
     <ContentPanel
@@ -23,6 +24,7 @@ export async function PanelHost({ ctx, org, space, contentId, closeHref }: { ctx
       publishing={publishing}
       requestTime={ctx.requestTime}
       closeHref={closeHref}
+      postTasks={postTasks}
     />
   );
 }

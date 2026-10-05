@@ -133,6 +133,23 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Tasks (Board and Table "Tasks" toggle, task panel, PRD 6.8, TK-01 to TK-04, ST-03)
+
+- A task belongs to a post, a project or the space, with title, status, assignee, due date, priority (Low, Medium, High,
+  Urgent), description, checklist and team-only comments (clients never see tasks, SH-05). Tasks have their own
+  statuses per space (To do, Doing, Done, Won’t do); "done" follows the status, so ticking a box moves it to Done.
+- Task panel (`?task=id`) over any Board, Table or Calendar view, and over the post panel when opened from it; Esc closes
+  the task first.
+- Board and Table get a Content | Tasks toggle (VW-01, VW-03). The task board drags between statuses and adds a task per
+  column; the task table edits status, assignee, due date and priority inline, with search, filters (assignee, status,
+  overdue, next 7 days) and sort. The Calendar shows tasks by due date and opens them in the task panel.
+- Post panel: tick tasks off, add one, or add a format's steps (TK-04: Reel = Script, Shoot, Edit, Thumbnail, Client
+  approval, Publish; also Carousel, Post and Story) with due dates counted back from the publish date and an optional
+  assignee. Steps already on the post are skipped.
+- Overview: Assigned to me, Overdue tasks, Tasks by status and Open tasks by person (OV-03).
+- Notifications (TK-03): assigned, comments and @mentions on tasks, due in the next day, overdue.
+- Not yet: task templates you can edit per space, recurring tasks, unassigning a removed member's tasks.
+
 ### Notifications (`/o/[org]/notifications`, PRD 6.18, NT-01 to NT-04, TK-03, UI-02)
 
 - Notifications page (NT-01): Primary and Cleared tabs, search, filters by type and by space, unread only, mark as read
@@ -148,7 +165,11 @@ drizzle/                  SQL migrations
   failed 30 minutes later (PB-10).
 - Email: the worker sends queued emails every minute through Resend; without `RESEND_API_KEY` they are marked skipped.
   Optional daily digest (NT-04) at 9 AM in the person's time zone, only on days with something unread.
-- Not yet: browser push (NT-03), WhatsApp and Slack (NT-05, V2), workflow notifications (V2).
+- Browser notifications (NT-03): "Turn on for this browser" in notification settings registers a service worker
+  (`public/sw.js`) and a push subscription; a Browser column picks the types. The worker sends them with Web Push and drops
+  subscriptions the browser has given up. Production needs `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`
+  (`npx web-push generate-vapid-keys`); development generates a pair into `.data/vapid.json`.
+- Not yet: WhatsApp and Slack (NT-05, V2), workflow notifications (V2).
 
 ### Search palette (top bar or Ctrl/⌘ K, PRD SR-01 to SR-03)
 
@@ -350,7 +371,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Tasks: create, assign and check off tasks in the panel, task templates per format (TK-01, TK-04), browser push.
+1. Status management (ST-01 to ST-06), project pages (PJ-01 to PJ-05) and the Create menu (UI2-04).
 2. AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

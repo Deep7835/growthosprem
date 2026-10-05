@@ -6,6 +6,9 @@ import { PreviewSwitcher } from "@/components/preview/PostPreview";
 import { LeftTabs } from "./LeftTabs";
 import { PublishingSection, ScheduleControls } from "./Publishing";
 import { CaptionEditor } from "./CaptionEditor";
+import { PostTasks } from "@/components/tasks/PostTasks";
+import { addTemplateTasks, editTask, newTask } from "@/app/o/[org]/s/[space]/task-actions";
+import type { PostTasks as PostTasksData } from "@/server/tasks";
 import { attachToContent, detachFromContent, moveContentMedia } from "@/app/o/[org]/s/[space]/media/actions";
 import { ContentMedia } from "@/components/media/ContentMedia";
 import { AvatarStack, PublishState, buttonClass } from "@/components/ui";
@@ -42,8 +45,10 @@ export function ContentPanel({
   publishing,
   requestTime,
   closeHref,
+  postTasks,
 }: {
   detail: ContentDetail;
+  postTasks: PostTasksData | null;
   org: string;
   space: string;
   spaceName: string;
@@ -183,19 +188,18 @@ export function ContentPanel({
             <h3 className="px-2 text-sm font-semibold">Hashtags</h3>
             <InlineField key={`hashtags-${item.hashtags}`} label="Hashtags" initial={item.hashtags} save={save("hashtags")} readOnly={!canEdit} placeholder="#diwali #cafe" />
           </div>
-          <div className="flex flex-col gap-2 px-2">
-            <h3 className="text-sm font-semibold">
-              Tasks{" "}
-              <span className="font-normal text-muted">
-                {detail.tasks.filter((t) => t.done).length} of {detail.tasks.length} done
-              </span>
-            </h3>
-            {detail.tasks.map((t) => (
-              <p key={t.id} className={`text-sm ${t.done ? "text-muted line-through" : ""}`}>
-                {t.title}
-              </p>
-            ))}
-          </div>
+          {postTasks && (
+            <PostTasks
+              data={postTasks}
+              contentId={item.id}
+              canEdit={canEdit}
+              timeZone={timezone}
+              now={requestTime}
+              create={newTask.bind(null, org, space)}
+              setDone={editTask.bind(null, org, space)}
+              applyTemplate={addTemplateTasks.bind(null, org, space, item.id)}
+            />
+          )}
         </section>
 
         {/* Activity */}

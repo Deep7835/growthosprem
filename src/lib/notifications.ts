@@ -2,8 +2,10 @@
 // web server, the job worker and tests share it.
 
 export type NotificationType = "action_required" | "comments" | "content" | "tasks" | "review" | "publishing" | "account" | "ai" | "system";
-export type Channels = { inApp: boolean; email: boolean };
-export type TypePrefs = Partial<Record<NotificationType, Channels>>;
+export type Channels = { inApp: boolean; email: boolean; push: boolean };
+/** What a saved table holds; `push` is missing in tables saved before push existed. */
+export type SavedChannels = { inApp: boolean; email: boolean; push?: boolean };
+export type TypePrefs = Partial<Record<NotificationType, SavedChannels>>;
 export interface NotificationSettingsDoc {
   types?: TypePrefs;
   digest?: boolean;
@@ -11,15 +13,15 @@ export interface NotificationSettingsDoc {
 }
 
 export const TYPES: { id: NotificationType; label: string; hint: string; defaults: Channels }[] = [
-  { id: "action_required", label: "Action required", hint: "A post failed, it’s time to post by hand, or an account needs reconnecting", defaults: { inApp: true, email: true } },
-  { id: "comments", label: "Comments and mentions", hint: "Someone comments on your post or @mentions you", defaults: { inApp: true, email: true } },
-  { id: "content", label: "Content updates", hint: "You’re assigned to a post, or its status changes", defaults: { inApp: true, email: false } },
-  { id: "tasks", label: "Task updates", hint: "A task of yours is due tomorrow or overdue", defaults: { inApp: true, email: false } },
-  { id: "review", label: "Client review", hint: "A client approves or asks for changes", defaults: { inApp: true, email: true } },
-  { id: "publishing", label: "Publishing", hint: "A post was published", defaults: { inApp: true, email: false } },
-  { id: "account", label: "Social account", hint: "Access to an account is about to expire", defaults: { inApp: true, email: true } },
-  { id: "ai", label: "AI Copilot", hint: "Your AI budget is nearly or fully used", defaults: { inApp: true, email: false } },
-  { id: "system", label: "System", hint: "Trial, billing and product notices", defaults: { inApp: true, email: false } },
+  { id: "action_required", label: "Action required", hint: "A post failed, it’s time to post by hand, or an account needs reconnecting", defaults: { inApp: true, email: true, push: true } },
+  { id: "comments", label: "Comments and mentions", hint: "Someone comments on your post or task, or @mentions you", defaults: { inApp: true, email: true, push: true } },
+  { id: "content", label: "Content updates", hint: "You’re assigned to a post, or its status changes", defaults: { inApp: true, email: false, push: false } },
+  { id: "tasks", label: "Task updates", hint: "You’re given a task, or one of yours is due tomorrow or overdue", defaults: { inApp: true, email: false, push: true } },
+  { id: "review", label: "Client review", hint: "A client approves or asks for changes", defaults: { inApp: true, email: true, push: true } },
+  { id: "publishing", label: "Publishing", hint: "A post was published", defaults: { inApp: true, email: false, push: false } },
+  { id: "account", label: "Social account", hint: "Access to an account is about to expire", defaults: { inApp: true, email: true, push: true } },
+  { id: "ai", label: "AI Copilot", hint: "Your AI budget is nearly or fully used", defaults: { inApp: true, email: false, push: false } },
+  { id: "system", label: "System", hint: "Trial, billing and product notices", defaults: { inApp: true, email: false, push: false } },
 ];
 
 export const TYPE_LABEL = Object.fromEntries(TYPES.map((t) => [t.id, t.label])) as Record<NotificationType, string>;
@@ -33,6 +35,8 @@ const KIND_TYPE: Record<string, NotificationType> = {
   comment: "comments",
   assigned: "content",
   status_changed: "content",
+  task_assigned: "tasks",
+  task_comment: "comments",
   task_due: "tasks",
   task_overdue: "tasks",
   review_approved: "review",
@@ -61,15 +65,17 @@ export function cleanPrefs(input: unknown): TypePrefs {
   for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
     if (!isType(k) || !v || typeof v !== "object") continue;
     const c = v as Record<string, unknown>;
-    out[k] = { inApp: k === "action_required" ? true : c.inApp === true, email: c.email === true };
+    out[k] = { inApp: k === "action_required" ? true : c.inApp === true, email: c.email === true, ...(typeof c.push === "boolean" ? { push: c.push } : {}) };
   }
   return out;
 }
 
 /** The channels for one event: the space's own setting, else the person's default, else ours. */
 export function channelsFor(type: NotificationType, own: { space?: TypePrefs | null; base?: TypePrefs | null }): Channels {
-  const chosen = own.space?.[type] ?? own.base?.[type] ?? TYPES.find((t) => t.id === type)!.defaults;
-  return type === "action_required" ? { inApp: true, email: chosen.email } : chosen;
+  const defaults = TYPES.find((t) => t.id === type)!.defaults;
+  const saved = own.space?.[type] ?? own.base?.[type];
+  const chosen: Channels = saved ? { inApp: saved.inApp, email: saved.email, push: saved.push ?? defaults.push } : defaults;
+  return type === "action_required" ? { ...chosen, inApp: true } : chosen;
 }
 
 /** The full table for a scope, filling gaps from the level below. */

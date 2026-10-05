@@ -30,7 +30,7 @@ export async function moveContent(org: string, space: string, contentId: string,
     const [target] = await tx
       .select()
       .from(statuses)
-      .where(and(eq(statuses.id, uuid.parse(statusId)), eq(statuses.spaceId, ctx.space.id)));
+      .where(and(eq(statuses.id, uuid.parse(statusId)), eq(statuses.spaceId, ctx.space.id), eq(statuses.appliesTo, "content")));
     if (!item || !target) throw new Error("Content or status not found in this space.");
     if (item.statusId === target.id) return;
     const [from] = await tx.select({ name: statuses.name }).from(statuses).where(eq(statuses.id, item.statusId));
@@ -64,7 +64,7 @@ export async function createContent(org: string, space: string, statusId: string
     const [target] = await tx
       .select()
       .from(statuses)
-      .where(and(eq(statuses.id, uuid.parse(statusId)), eq(statuses.spaceId, ctx.space.id)));
+      .where(and(eq(statuses.id, uuid.parse(statusId)), eq(statuses.spaceId, ctx.space.id), eq(statuses.appliesTo, "content")));
     if (!target) throw new Error("Status not found in this space.");
     const [{ top }] = await tx
       .select({ top: max(contentItems.position) })

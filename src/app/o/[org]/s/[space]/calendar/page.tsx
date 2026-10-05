@@ -1,5 +1,6 @@
 import { Calendar } from "@/components/calendar/Calendar";
 import { PanelHost } from "@/components/content/PanelHost";
+import { TaskPanelHost } from "@/components/tasks/TaskPanelHost";
 import { loadCalendar, readFilters } from "@/server/calendar";
 import { calendarSettings } from "@/server/calendar-page";
 import { momentsForRange } from "@/server/strategy";
@@ -45,6 +46,7 @@ export default async function SpaceCalendarPage({ params, searchParams }: PagePr
         setPrefs={setCalendarPrefs.bind(null, org)}
       />
       <PanelHost ctx={ctx} org={org} space={space} contentId={typeof query.content === "string" ? query.content : null} closeHref={back ? `${base}?${back}` : base} />
+      <TaskPanelHost ctx={ctx} org={org} space={space} taskId={typeof query.task === "string" ? query.task : null} closeHref={back ? `${base}?${back}` : base} />
     </>
   );
 }

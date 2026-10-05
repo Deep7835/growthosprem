@@ -8,6 +8,7 @@ import { escapeHtml, sendEmail } from "@/lib/email";
 import { DIGEST_HOUR, TYPE_LABEL, localClock, typeOf } from "@/lib/notifications";
 import { publicBase } from "@/publishing/media-url";
 import { deliver } from "./deliver";
+import { sendPendingPushes } from "./push";
 
 export const NOTIFY_JOB = { digest: "notify.digest" } as const;
 
@@ -145,7 +146,7 @@ export async function sweepTasks(db: Db, now = new Date()) {
     const due = task.dueAt!;
     const overdue = due.getTime() <= now.getTime();
     const when = new Intl.DateTimeFormat("en-IN", { timeZone: timezone, weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(due);
-    const href = task.contentItemId ? `/o/${orgSlug}/s/${spaceSlug}/board?content=${task.contentItemId}` : `/o/${orgSlug}/s/${spaceSlug}/board`;
+    const href = `/o/${orgSlug}/s/${spaceSlug}/board?task=${task.id}`;
     sent += await withOrg(db, task.orgId, (tx) =>
       deliver(tx, [task.assigneeId!], {
         orgId: task.orgId,
@@ -166,4 +167,5 @@ export async function notificationChores(db: Db, now = new Date()) {
   await sweepTasks(db, now);
   await scheduleDigests(db, now);
   await sendPendingEmails(db);
+  await sendPendingPushes(db);
 }

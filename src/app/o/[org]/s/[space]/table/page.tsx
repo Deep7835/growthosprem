@@ -1,4 +1,9 @@
 import { PanelHost } from "@/components/content/PanelHost";
+import { ViewToggle } from "@/components/tasks/bits";
+import { TaskPanelHost, withoutTask } from "@/components/tasks/TaskPanelHost";
+import { TaskTable } from "@/components/tasks/TaskTable";
+import { listTasks } from "@/server/tasks";
+import { editTask, newTask } from "../task-actions";
 import { ContentTable } from "@/components/table/ContentTable";
 import { isoDate, zonedParts } from "@/lib/analytics/time";
 import { loadTable } from "@/server/table";
@@ -12,12 +17,39 @@ export default async function TablePage({ params, searchParams }: PageProps<"/o/
   const { org, space } = await params;
   const query = await searchParams;
   const ctx = await getSpaceContext(org, space);
+  const base = `/o/${org}/s/${space}/table`;
+  const taskPanel = <TaskPanelHost ctx={ctx} org={org} space={space} taskId={typeof query.task === "string" ? query.task : null} closeHref={withoutTask(base, query)} />;
+
+  if (query.view === "tasks") {
+    const tasks = await listTasks(ctx);
+    return (
+      <div className="flex flex-col gap-4 p-6">
+        <div>
+          <ViewToggle current="tasks" />
+        </div>
+        <TaskTable
+          data={tasks}
+          me={ctx.user.id}
+          timeZone={ctx.space.timezone}
+          now={ctx.requestTime}
+          hrefFor={`${base}?view=tasks`}
+          canEdit={ctx.can("content.edit")}
+          edit={editTask.bind(null, org, space)}
+          create={newTask.bind(null, org, space)}
+        />
+        {taskPanel}
+      </div>
+    );
+  }
+
   const data = await loadTable(ctx);
   const now = zonedParts(new Date(ctx.requestTime), ctx.space.timezone);
-  const base = `/o/${org}/s/${space}/table`;
 
   return (
     <>
+      <div className="px-6 pt-6">
+        <ViewToggle current="content" />
+      </div>
       <ContentTable
         org={org}
         space={space}
@@ -33,6 +65,7 @@ export default async function TablePage({ params, searchParams }: PageProps<"/o/
         saveView={saveTableView.bind(null, org, space)}
       />
       <PanelHost ctx={ctx} org={org} space={space} contentId={typeof query.content === "string" ? query.content : null} closeHref={base} />
+      {taskPanel}
     </>
   );
 }

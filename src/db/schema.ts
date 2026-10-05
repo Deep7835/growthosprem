@@ -271,19 +271,48 @@ export const placements = pgTable("placements", {
   createdAt: createdAt(),
 });
 
-export const tasks = pgTable("tasks", {
-  id: id(),
-  orgId: orgId(),
-  spaceId: uuid("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
-  contentItemId: uuid("content_item_id").references(() => contentItems.id, { onDelete: "cascade" }),
-  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
-  title: text("title").notNull(),
-  assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
-  dueAt: timestamp("due_at", { withTimezone: true }),
-  priority: taskPriority("priority").notNull().default("medium"),
-  done: boolean("done").notNull().default(false),
-  createdAt: createdAt(),
-});
+// Tasks (PRD 6.8, TK-01): the work behind a post, a project or the space. `done` mirrors whether
+// the status is in Completed or Closed, so progress counts stay a cheap query.
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: id(),
+    orgId: orgId(),
+    spaceId: uuid("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
+    contentItemId: uuid("content_item_id").references(() => contentItems.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    // Task statuses are the space's statuses that apply to tasks (ST-03).
+    statusId: uuid("status_id").references(() => statuses.id, { onDelete: "set null" }),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    priority: taskPriority("priority").notNull().default("medium"),
+    done: boolean("done").notNull().default(false),
+    checklist: jsonb("checklist").$type<{ id: string; text: string; done: boolean }[]>().notNull().default([]),
+    position: doublePrecision("position").notNull().default(0),
+    // The template step that made it (TK-04), so a template is never applied twice.
+    templateKey: text("template_key"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("tasks_space").on(t.spaceId, t.statusId), index("tasks_content").on(t.contentItemId), index("tasks_assignee").on(t.assigneeId, t.dueAt)],
+);
+
+// Comments on a task (TK-01). Separate from post comments, so client reviewers can never see them (SH-05).
+export const taskComments = pgTable(
+  "task_comments",
+  {
+    id: id(),
+    orgId: orgId(),
+    taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("task_comments_task").on(t.taskId, t.createdAt)],
+);
 
 export const comments = pgTable("comments", {
   id: id(),
@@ -666,6 +695,8 @@ export const notifications = pgTable(
     inApp: boolean("in_app").notNull().default(true),
     // "pending" until the worker emails it, then "sent" or "skipped"; null when email is off.
     emailStatus: text("email_status"),
+    // The same for browser push (NT-03).
+    pushStatus: text("push_status"),
     // Repeating events (a task due tomorrow, a token about to expire) notify once per key.
     key: text("key"),
     readAt: timestamp("read_at", { withTimezone: true }),
@@ -676,8 +707,22 @@ export const notifications = pgTable(
     index("notifications_user").on(t.userId, t.createdAt),
     uniqueIndex("notifications_user_key").on(t.userId, t.key),
     index("notifications_email").on(t.emailStatus),
+    index("notifications_push").on(t.pushStatus),
   ],
 );
+
+// Browser push subscriptions (NT-03), one per browser a person turned notifications on in.
+// Not tied to an organisation, so like `jobs` it is read only by the server and the worker.
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: id(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent"),
+  createdAt: createdAt(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+});
 
 // Notification preferences (NT-03, NT-04): one row for the person's defaults ("default") and
 // one per space they changed. Missing rows fall back to the defaults in src/lib/notifications.ts.
@@ -689,7 +734,7 @@ export const notificationSettings = pgTable(
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     scope: text("scope").notNull(),
     settings: jsonb("settings")
-      .$type<{ types?: Partial<Record<string, { inApp: boolean; email: boolean }>>; digest?: boolean; timeZone?: string }>()
+      .$type<{ types?: Partial<Record<string, { inApp: boolean; email: boolean; push?: boolean }>>; digest?: boolean; timeZone?: string }>()
       .notNull()
       .default({}),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

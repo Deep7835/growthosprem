@@ -2,7 +2,7 @@
 // Runs with the privileged connection, before any tenant exists.
 import { sql } from "drizzle-orm";
 import type { Db } from "./core";
-import { STATUS_TEMPLATES, type StatusSeed } from "@/lib/status-templates";
+import { STATUS_TEMPLATES, TASK_STATUSES, type StatusSeed } from "@/lib/status-templates";
 import * as s from "./schema";
 
 const AGENCY_PIPELINE = STATUS_TEMPLATES.agency.statuses;
@@ -75,6 +75,14 @@ export async function seed(db: Db): Promise<void> {
     const cafeStatuses = await insertStatuses(cafe.id, AGENCY_PIPELINE);
     await insertStatuses(realEstate.id, DEFAULT_TEMPLATE);
     const st = Object.fromEntries(cafeStatuses.map((x) => [x.name, x.id]));
+    const taskStatuses = (spaceId: string) =>
+      tx
+        .insert(s.statuses)
+        .values(TASK_STATUSES.map(([name, color, category], i) => ({ orgId: org.id, spaceId, name, color, category, appliesTo: "task" as const, position: 100 + i })))
+        .returning();
+    const cafeTaskStatuses = await taskStatuses(cafe.id);
+    await taskStatuses(realEstate.id);
+    const taskStatus = (done: boolean) => cafeTaskStatuses.find((x) => x.category === (done ? "completed" : "not_started"))!.id;
 
     const [ig, fb] = await tx
       .insert(s.socialAccounts)
@@ -175,6 +183,9 @@ export async function seed(db: Db): Promise<void> {
             contentItemId: row.id,
             title: title as string,
             done: done as boolean,
+            statusId: taskStatus(done as boolean),
+            position: n,
+            createdBy: prem.id,
             assigneeId: riya.id,
             dueAt: ist(`2026-10-${String(8 + n * 2).padStart(2, "0")}T18:00`),
           })),

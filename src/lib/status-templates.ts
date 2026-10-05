@@ -43,3 +43,11 @@ export const STATUS_TEMPLATES = {
 } as const;
 
 export type StatusTemplateKey = keyof typeof STATUS_TEMPLATES;
+
+/** Every space's task statuses (ST-03); content keeps its own set. Matches drizzle/0027. */
+export const TASK_STATUSES: StatusSeed[] = [
+  ["To do", "#9CA3AF", "not_started", null],
+  ["Doing", "#F2A93B", "active", null],
+  ["Done", "#34D399", "completed", null],
+  ["Won’t do", "#6B7280", "closed", null],
+];
