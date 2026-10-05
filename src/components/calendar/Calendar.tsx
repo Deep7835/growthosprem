@@ -47,6 +47,8 @@ interface Props {
   filters: CalendarFilters;
   spaces?: { slug: string; name: string; color: string; selected: boolean }[];
   canMove: boolean;
+  /** Festivals and moments in view (SG-04), shown as markers. */
+  moments?: { date: string; name: string; approximate?: boolean }[];
   moveContent: Move;
   moveTask: Move;
   setPrefs: (prefs: { calendarColor?: "platform" | "status"; weekStartsOn?: WeekStart }) => Promise<void>;
@@ -212,6 +214,14 @@ export function Calendar(props: Props) {
   });
 
   const days = visibleDays(view, anchor, weekStart);
+  const momentsOn = new Map<string, { name: string; approximate?: boolean }[]>();
+  for (const m of props.moments ?? []) momentsOn.set(m.date, [...(momentsOn.get(m.date) ?? []), m]);
+  const momentLabel = (date: string) =>
+    (momentsOn.get(date) ?? []).map((m) => (
+      <span key={m.name} title={m.approximate ? `${m.name} (date can vary by a day)` : m.name} className="block truncate rounded bg-accent-bg px-1.5 text-[11px] font-semibold text-accent-ink">
+        🎉 {m.name}
+      </span>
+    ));
   const byDate = new Map<string, CalendarEvent[]>();
   for (const e of all) {
     if (!e.date) continue;
@@ -284,6 +294,7 @@ export function Calendar(props: Props) {
                       >
                         {d.day}
                       </Link>
+                      {momentLabel(key)}
                       {list.slice(0, 3).map((e) => chip(e, true))}
                       {list.length > 3 && (
                         <Link href={href({ view: "day", date: key })} className="px-1 text-[11px] font-semibold text-muted hover:text-ink">
@@ -305,6 +316,7 @@ export function Calendar(props: Props) {
               byDate={byDate}
               href={href}
               hint={hint}
+              momentLabel={momentLabel}
               dropProps={dropProps}
               render={(e) => chip(e)}
             />
@@ -538,9 +550,11 @@ function TimeGrid({
   byDate,
   href,
   hint,
+  momentLabel,
   dropProps,
   render,
 }: {
+  momentLabel: (date: string) => ReactNode;
   days: ReturnType<typeof visibleDays>;
   today: string;
   nowMinutes: number;
@@ -573,10 +587,13 @@ function TimeGrid({
       <div className="grid overflow-hidden border-b border-line bg-subtle" style={{ gridTemplateColumns: `56px repeat(${days.length}, minmax(0, 1fr))`, scrollbarGutter: "stable" }}>
         <span />
         {days.map((d) => (
-          <Link key={isoDate(d)} href={href({ view: "day", date: isoDate(d) })} className="flex items-baseline gap-1.5 px-2 py-2 text-xs font-semibold text-muted hover:text-ink">
-            {dayLabel(d)}
-            <span className={`grid size-6 place-items-center rounded-full text-sm ${isoDate(d) === today ? "bg-ink text-white" : "text-ink"}`}>{d.day}</span>
-          </Link>
+          <div key={isoDate(d)} className="flex min-w-0 flex-col gap-0.5 px-2 py-2">
+            <Link href={href({ view: "day", date: isoDate(d) })} className="flex items-baseline gap-1.5 text-xs font-semibold text-muted hover:text-ink">
+              {dayLabel(d)}
+              <span className={`grid size-6 place-items-center rounded-full text-sm ${isoDate(d) === today ? "bg-ink text-white" : "text-ink"}`}>{d.day}</span>
+            </Link>
+            {momentLabel(isoDate(d))}
+          </div>
         ))}
       </div>
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>

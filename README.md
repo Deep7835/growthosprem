@@ -133,6 +133,26 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Strategy (`/o/[org]/s/[space]/strategy`, PRD 6.16, SG-01 to SG-04)
+
+- Wizard (SG-01): business, industry, audience, location, offer, objective, platforms, posts a week, competitors and
+  festival regions, prefilled from Brand Brain, connected accounts and posting history.
+- Strategy document (SG-02): positioning, audience, goals with metrics and targets, content pillars with target shares,
+  formats and frequency per platform, themes, growth tactics (reach, engagement, community, conversion) and a
+  30/60/90-day plan. "Build from my data" works without AI: pillars that already work keep their place, weighted by
+  engagement; goals start from the real follower count and engagement rate; cadence leans on the formats that reach
+  most. "Write it with AI" (Opus 5.5) starts from that and sharpens it. Every save is a version you can view and
+  restore; editing works section by section. "Share with client" gives a read-only link (only a hash is stored; a new
+  link replaces the old one, and it can be turned off).
+- Plan 30 days (SG-03): a table of date, time, format, pillar, topic, hook and CTA, spread by the strategy's cadence and
+  pillar shares at the best posting time, with topics from the Idea Bank where a pillar matches and festivals taking over
+  the nearest post. "Plan with AI" writes the topics, hooks and CTAs. Edit, untick, then "Add to calendar" creates drafts
+  in Not started (ideas used are marked as turned into posts); the rest of the plan stays.
+- Festivals and moments (SG-04): India-first calendar for 2026 and 2027 (lunar festivals and Eid marked approximate; 2026
+  dates follow the Government of India holiday lists), regional festivals by the strategy's regions, global days, plus the
+  space's own dates. "Add as campaign idea" sends one to the Idea Bank. They also show as markers on the Calendar.
+- Not yet: monthly review against the plan (SG-05, V2), a Copilot "Create strategy" card, festival dates beyond 2027.
+
 ### Idea Bank (`/o/[org]/s/[space]/ideas`, PRD VW-07, AI-05)
 
 - Ideas with title, notes, source (Me, AI, Trend, Competitor), pillar, tags, reference links (http/https only) and
@@ -297,7 +317,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Per-platform captions (CT-06) and the strategy tools: plan 30 days, festival calendar (SG-01 to SG-04).
+1. Per-platform captions (CT-06), the search palette (SR-01, SR-02) and the notifications page (6.18).
 2. Notifications page and preferences (6.18), AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

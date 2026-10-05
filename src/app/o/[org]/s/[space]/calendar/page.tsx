@@ -2,6 +2,7 @@ import { Calendar } from "@/components/calendar/Calendar";
 import { PanelHost } from "@/components/content/PanelHost";
 import { loadCalendar, readFilters } from "@/server/calendar";
 import { calendarSettings } from "@/server/calendar-page";
+import { momentsForRange } from "@/server/strategy";
 import { getSpaceContext } from "@/server/tenancy";
 import { moveContent, moveTask, setCalendarPrefs } from "../../../calendar-actions";
 
@@ -16,6 +17,8 @@ export default async function SpaceCalendarPage({ params, searchParams }: PagePr
   const s = calendarSettings(query, { timeZone, requestTime: ctx.requestTime, preferences: ctx.user.preferences });
   const filters = readFilters(query);
   const data = await loadCalendar({ orgId: ctx.org.id, userId: ctx.user.id }, [ctx.space], { view: s.view, anchor: s.anchor, weekStart: s.weekStart, timeZone, filters });
+  const span = Math.round((Date.parse(data.range.to) - Date.parse(data.range.from)) / 864e5) + 1;
+  const moments = await momentsForRange(ctx, data.range.from, span);
   const base = `/o/${org}/s/${space}/calendar`;
   const back = new URLSearchParams(s.query).toString();
 
@@ -36,6 +39,7 @@ export default async function SpaceCalendarPage({ params, searchParams }: PagePr
         data={data}
         filters={filters}
         canMove={ctx.can("content.edit")}
+        moments={moments.map((m) => ({ date: m.date, name: m.name, approximate: m.approximate }))}
         moveContent={moveContent.bind(null, org)}
         moveTask={moveTask.bind(null, org)}
         setPrefs={setCalendarPrefs.bind(null, org)}

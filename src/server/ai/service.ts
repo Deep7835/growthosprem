@@ -9,6 +9,7 @@ import { z } from "zod";
 import { withOrg } from "@/db";
 import { aiActions, aiMessages, brandBrains, contentItems, usageEvents } from "@/db/schema";
 import { COPILOT_MODEL, WRITING_MODEL, creditsFor, type TokenUsage } from "@/lib/ai/config";
+import { StrategyDoc, type History, type StrategyInputs } from "@/lib/strategy";
 
 let client: Anthropic | null | undefined;
 
@@ -280,4 +281,80 @@ export async function suggestIdeaPillars(input: {
   const known = new Set(input.ideas.map((i) => i.id));
   const assignments = (response.parsed_output?.assignments ?? []).filter((a) => known.has(a.id) && a.pillar.trim()).map((a) => ({ id: a.id, pillar: a.pillar.trim().slice(0, 60) }));
   return { assignments, usage: response.usage, model: response.model };
+}
+
+/* ---------- Strategy (SG-02) and 30-day plan (SG-03) ---------- */
+
+/**
+ * Writes the strategy document. It starts from the starter strategy (built from the space's own
+ * numbers) so facts stay grounded; the model sharpens positioning, pillars, tactics and the plan.
+ */
+export async function writeStrategy(input: {
+  inputs: StrategyInputs;
+  history: History | null;
+  brand: Partial<BrandBrainDraft> | null;
+  moments: { name: string; date: string }[];
+  starter: StrategyDoc;
+}): Promise<{ doc: StrategyDoc; usage: TokenUsage; model: string }> {
+  const api = anthropic();
+  if (!api) throw new Error(AI_SETUP_MESSAGE);
+  const facts = input.history
+    ? `Last 90 days: ${input.history.posts} posts (${input.history.perWeek}/week), ${input.history.followers} followers, engagement rate ${(input.history.engagementRate * 100).toFixed(1)}%.
+Pillars: ${input.history.pillars.map((p) => `${p.name} ${p.posts} posts at ${(p.engagementRate * 100).toFixed(1)}%`).join("; ") || "none tagged"}.
+Formats by average reach: ${input.history.formats.map((f) => `${f.format} ${f.avgReach} (${f.posts} posts)`).join("; ")}.
+Best time: ${input.history.bestSlot?.slot ?? "unknown"}.`
+    : "No connected accounts yet, so no history.";
+  const response = await api.beta.messages.parse({
+    model: COPILOT_MODEL,
+    max_tokens: 16000,
+    output_config: { effort: "medium", format: betaZodOutputFormat(StrategyDoc) },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    system:
+      "You are a senior social media strategist for Indian brands. Write a practical strategy the team can follow this quarter. Use only the facts given for numbers; never invent results. Keep every item short and specific to this brand. Pillar shares add up to 100. Cadence uses only the brand's platforms, with placements named ig_post, ig_reel, ig_story, ig_carousel, fb_post, fb_reel, fb_story or li_post. Include the listed festivals and moments in themes where they fit the brand.",
+    messages: [
+      {
+        role: "user",
+        content: `Brand inputs:\n${JSON.stringify(input.inputs, null, 2)}\n\nBrand Brain: ${input.brand ? JSON.stringify({ description: input.brand.description, voice: input.brand.voice, offers: input.brand.offers, usps: input.brand.usps }) : "not filled in"}\n\nFacts:\n${facts}\n\nUpcoming festivals and moments: ${input.moments.map((m) => `${m.name} (${m.date})`).join(", ") || "none"}\n\nStarting point built from the data (improve it, keep its numbers):\n${JSON.stringify(input.starter)}`,
+      },
+    ],
+  });
+  if (response.stop_reason === "refusal") throw new Error("AI couldn’t write this strategy.");
+  if (!response.parsed_output) throw new Error("AI didn’t return a complete strategy. Try again.");
+  return { doc: response.parsed_output, usage: response.usage, model: response.model };
+}
+
+const AiPlan = z.object({
+  rows: z.array(
+    z.object({ date: z.string(), time: z.string(), platform: z.string(), format: z.string(), pillar: z.string(), topic: z.string(), hook: z.string(), cta: z.string() }),
+  ),
+});
+
+/** Fills in topics, hooks and CTAs for the planned slots, keeping dates, formats and pillars. */
+export async function planWithAi(input: {
+  doc: StrategyDoc;
+  inputs: StrategyInputs;
+  brand: Partial<BrandBrainDraft> | null;
+  slots: { date: string; time: string; platform: string; format: string; pillar: string; topic: string; momentName?: string }[];
+}): Promise<{ rows: { date: string; time: string; platform: string; format: string; pillar: string; topic: string; hook: string; cta: string }[]; usage: TokenUsage; model: string }> {
+  const api = anthropic();
+  if (!api) throw new Error(AI_SETUP_MESSAGE);
+  const response = await api.beta.messages.parse({
+    model: WRITING_MODEL,
+    max_tokens: 12000,
+    output_config: { effort: "low", format: betaZodOutputFormat(AiPlan) },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    system:
+      "You plan social media posts for a brand. For each slot, keep date, time, platform, format and pillar exactly as given and return them in the same order. Write a specific topic (a working title), a scroll-stopping hook (one line) and a call to action that fits the brand's objective. If a slot already has a topic from the Idea Bank or a festival, keep its idea and sharpen the wording. Match the brand's voice and caption language.",
+    messages: [
+      {
+        role: "user",
+        content: `Brand: ${input.inputs.business || "not described"}\nAudience: ${input.inputs.audience || "-"}\nObjective: ${input.inputs.objective}\nVoice: ${input.brand?.voice || "friendly and clear"}\nCaption language: ${input.brand?.captionLanguage ?? "en"}\nPillars: ${input.doc.pillars.map((p) => `${p.name}: ${p.description}`).join("; ")}\n\nSlots:\n${JSON.stringify(input.slots)}`,
+      },
+    ],
+  });
+  if (response.stop_reason === "refusal") throw new Error("AI couldn’t plan these posts.");
+  if (!response.parsed_output) throw new Error("AI didn’t return a complete plan. Try again.");
+  return { rows: response.parsed_output.rows, usage: response.usage, model: response.model };
 }

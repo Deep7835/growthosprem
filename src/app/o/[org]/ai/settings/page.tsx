@@ -8,7 +8,7 @@ import { setAiBudget } from "../actions";
 
 export const metadata = { title: "AI settings" };
 
-const KIND = { copilot: "Copilot chat", caption: "Caption help", brand_brain: "Brand Brain drafts", ideas: "Idea Bank pillars" } as Record<string, string>;
+const KIND = { copilot: "Copilot chat", caption: "Caption help", brand_brain: "Brand Brain drafts", ideas: "Idea Bank pillars", strategy: "Strategy", plan: "30-day plans" } as Record<string, string>;
 
 export default async function AiSettings({ params }: PageProps<"/o/[org]/ai/settings">) {
   const { org } = await params;

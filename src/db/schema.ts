@@ -716,3 +716,62 @@ export const ideas = pgTable(
   },
   (t) => [index("ideas_space").on(t.spaceId, t.createdAt)],
 );
+
+// Strategy (PRD 6.16): one per space, with its wizard inputs, versions and a share link (SG-01, SG-02).
+export const strategies = pgTable("strategies", {
+  id: id(),
+  orgId: orgId(),
+  spaceId: uuid("space_id").notNull().unique().references(() => spaces.id, { onDelete: "cascade" }),
+  inputs: jsonb("inputs").notNull().default({}),
+  currentVersion: integer("current_version").notNull().default(0),
+  // Read-only link for clients; only a hash is stored, like invites.
+  shareTokenHash: text("share_token_hash").unique(),
+  sharedAt: timestamp("shared_at", { withTimezone: true }),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const strategyVersions = pgTable(
+  "strategy_versions",
+  {
+    id: id(),
+    orgId: orgId(),
+    strategyId: uuid("strategy_id").notNull().references(() => strategies.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    doc: jsonb("doc").notNull(),
+    // "starter" (built from data), "ai", "edit" or "restore".
+    source: text("source").notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("strategy_versions_number").on(t.strategyId, t.version)],
+);
+
+// The 30-day plan being edited before "Add to calendar" (SG-03). One open plan per space.
+export const contentPlans = pgTable("content_plans", {
+  id: id(),
+  orgId: orgId(),
+  spaceId: uuid("space_id").notNull().unique().references(() => spaces.id, { onDelete: "cascade" }),
+  rows: jsonb("rows").notNull().default([]),
+  source: text("source").notNull(),
+  startsOn: text("starts_on").notNull(),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A space's own dates for the moment calendar (SG-04): anniversaries, launches, local events.
+export const spaceMoments = pgTable(
+  "space_moments",
+  {
+    id: id(),
+    orgId: orgId(),
+    spaceId: uuid("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    date: text("date").notNull(),
+    note: text("note").notNull().default(""),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("space_moments_space").on(t.spaceId, t.date)],
+);

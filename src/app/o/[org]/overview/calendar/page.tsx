@@ -2,6 +2,7 @@ import { Calendar } from "@/components/calendar/Calendar";
 import { EmptyState } from "@/components/ui";
 import { calendarZone, loadCalendar, readFilters } from "@/server/calendar";
 import { calendarSettings } from "@/server/calendar-page";
+import { upcomingMoments } from "@/lib/festivals";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
 import { moveContent, moveTask, setCalendarPrefs } from "../../calendar-actions";
 
@@ -32,9 +33,15 @@ export default async function OrgCalendarPage({ params, searchParams }: PageProp
     filters,
   });
 
+  const [fy, fm, fd] = data.range.from.split("-").map(Number);
+  const span = Math.round((Date.parse(data.range.to) - Date.parse(data.range.from)) / 864e5) + 1;
+  // Across spaces: the built-in calendar for all regions.
+  const moments = upcomingMoments({ year: fy, month: fm, day: fd }, span);
+
   return (
     <Calendar
       scope="org"
+      moments={moments.map((m) => ({ date: m.date, name: m.name, approximate: m.approximate }))}
       org={org}
       basePath={`/o/${org}/overview/calendar`}
       query={s.query}
