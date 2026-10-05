@@ -85,6 +85,13 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps<
         <EmptyState
           title="Connect an account to see analytics"
           body={`Once ${ctx.space.name}’s Instagram, Facebook or LinkedIn is connected, metrics are collected every day and shown here.`}
+          action={
+            ctx.can("accounts.connect") ? (
+              <Link href={`/o/${org}/s/${space}/settings/accounts`} className={buttonClass("primary")}>
+                Connect Instagram and Facebook
+              </Link>
+            ) : undefined
+          }
         />
       </div>
     );
@@ -182,9 +189,15 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps<
                       {PLATFORM_NAMES[p]}
                     </span>
                     <p className="flex-1 text-sm text-muted">Connect {PLATFORM_NAMES[p]} to see its followers, views and engagement here.</p>
-                    <span className={`${buttonClass("secondary", "sm")} cursor-not-allowed opacity-60`} aria-disabled>
-                      Connect · soon
-                    </span>
+                    {p === "linkedin" ? (
+                      <span className={`${buttonClass("secondary", "sm")} cursor-not-allowed opacity-60`} aria-disabled>
+                        Connect · soon
+                      </span>
+                    ) : (
+                      <Link href={`/o/${org}/s/${space}/settings/accounts`} className={buttonClass("secondary", "sm")}>
+                        Connect {PLATFORM_NAMES[p]}
+                      </Link>
+                    )}
                   </div>
                 );
               }

@@ -49,7 +49,7 @@ export const placementKind = pgEnum("placement_kind", [
   "fb_story",
   "li_post",
 ]);
-export const accountStatus = pgEnum("account_status", ["active", "expiring", "reconnect_needed"]);
+export const accountStatus = pgEnum("account_status", ["active", "expiring", "reconnect_needed", "disconnected"]);
 export const taskPriority = pgEnum("task_priority", ["low", "medium", "high", "urgent"]);
 export const commentVisibility = pgEnum("comment_visibility", ["private", "public"]);
 export const actorKind = pgEnum("actor_kind", ["user", "ai", "reviewer", "system"]);
@@ -132,7 +132,9 @@ export const spaceMembers = pgTable(
   (t) => [primaryKey({ columns: [t.spaceId, t.userId] })],
 );
 
-export const socialAccounts = pgTable("social_accounts", {
+export const socialAccounts = pgTable(
+  "social_accounts",
+  {
   id: id(),
   orgId: orgId(),
   spaceId: uuid("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
@@ -140,13 +142,27 @@ export const socialAccounts = pgTable("social_accounts", {
   handle: text("handle").notNull(),
   externalId: text("external_id"),
   accountType: text("account_type"),
-  // Encrypted tokens are added with the publishing milestone.
+  name: text("name"),
+  // For Instagram: the Facebook Page it is linked to (Instagram API with Facebook Login).
+  pageId: text("page_id"),
+  // AES-256-GCM, see src/lib/crypto.ts. Never sent to the browser.
+  accessTokenEnc: text("access_token_enc"),
   tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
   status: accountStatus("status").notNull().default("active"),
+  statusReason: text("status_reason"),
+  connectedBy: uuid("connected_by").references(() => users.id, { onDelete: "set null" }),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  // While a job is waiting or running: "import_queued", "importing", "queued", "syncing".
+  // "import_failed" once the history import gave up.
+  syncState: text("sync_state"),
+  // Posts processed so far, for the import progress bar (OB-07).
+  syncProgress: jsonb("sync_progress").$type<{ done: number; total: number }>(),
   // Seeded sample accounts for development; the UI labels their numbers as sample data.
   isDemo: boolean("is_demo").notNull().default(false),
   createdAt: createdAt(),
-});
+  },
+  (t) => [uniqueIndex("social_accounts_space_external").on(t.spaceId, t.platform, t.externalId)],
+);
 
 export const statuses = pgTable(
   "statuses",
@@ -564,4 +580,42 @@ export const usageEvents = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("usage_events_org").on(t.orgId, t.createdAt)],
+);
+
+// Between Meta's login callback and the person choosing which Pages to connect. Holds the
+// encrypted candidate list (with Page tokens) for 15 minutes.
+export const oauthSessions = pgTable("oauth_sessions", {
+  id: id(),
+  orgId: orgId(),
+  spaceId: uuid("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(),
+  dataEnc: text("data_enc").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: createdAt(),
+});
+
+// Background jobs (PRD 9): history import, metrics sync, token health. Processed by a worker
+// with the privileged connection, so the tenant lives in the payload, not an org_id column.
+export const jobs = pgTable(
+  "jobs",
+  {
+    id: id(),
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").notNull().default({}),
+    // Lower runs first: publishing (0) always before syncs (5) (PRD 9).
+    priority: integer("priority").notNull().default(5),
+    runAt: timestamp("run_at", { withTimezone: true }).notNull().defaultNow(),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(3),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedBy: text("locked_by"),
+    lastError: text("last_error"),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+    // At most one pending job per key, e.g. one daily sync per account per day.
+    dedupeKey: text("dedupe_key").unique(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("jobs_due").on(t.doneAt, t.failedAt, t.priority, t.runAt)],
 );

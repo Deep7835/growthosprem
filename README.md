@@ -50,6 +50,7 @@ account menu:
 | `npm run db:generate` | Create a migration after changing `src/db/schema.ts`                 |
 | `npm run db:migrate`  | Apply migrations to the hosted Postgres in `DATABASE_URL`            |
 | `npm run db:reset`    | Delete the local database (stop the dev server first); it reseeds on next start |
+| `npm run worker`      | Run background jobs as their own process (production, needs `DATABASE_URL`) |
 
 ## How it is put together
 
@@ -71,7 +72,8 @@ src/
   app/review/[token]/     public client review page (no login)
   components/             shell, board, content panel, UI primitives
   db/                     schema, connection, seed, RLS test
-  lib/                    permissions, formatting, placements, content versioning
+  jobs/                   Postgres job queue, worker, Instagram and Facebook import and sync
+  lib/                    permissions, formatting, placements, content versioning, Meta Graph client, crypto
   server/                 session, tenancy, queries, activity log
 drizzle/                  SQL migrations
 ```
@@ -131,6 +133,29 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Instagram and Facebook connection (`/o/[org]/s/[space]/settings/accounts`, PRD SP-04, OB-05, OB-07, section 9)
+
+- "Connect Instagram and Facebook" goes through Facebook Login (Graph API v26.0, Instagram API with Facebook Login). The
+  callback checks a one-time state cookie, swaps the code for a long-lived token and lists the person's Pages with their
+  linked Instagram professional accounts. The picker (step two) chooses which belong to the space; accounts already in
+  another space are blocked. Only Managers and above can connect or disconnect (`accounts.connect`).
+- Page tokens are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`, `TOKEN_ENCRYPTION_KEY`) and never reach the
+  browser. The 15-minute picker session is encrypted too.
+- On connect, the 90-day history import runs as a background job with a progress bar on the Accounts page and a banner
+  across the space (OB-07). Facebook Pages also backfill daily follower totals; Instagram follower history starts on the day
+  of connection because Instagram only reports new followers per day. Connecting real accounts replaces the seeded sample ones.
+- Token health (SP-04): Active, Expires in N days (warned 7 days before Meta's 90-day data-access expiry), Reconnect needed.
+  A revoked token stops syncing, shows a banner across the space and logs the change. Reconnecting uses the same flow.
+- Disconnect deletes the token and stops syncing; imported posts stay in analytics.
+- Jobs (`src/jobs/`): a Postgres queue (`FOR UPDATE SKIP LOCKED`) instead of Redis and BullMQ, so there is one less service to run.
+  Priorities (publishing will come first), one running job per account, retries at 30 s / 2 min / 8 min, permanent errors
+  not retried, stale locks reclaimed. Hourly sync takes post snapshots at 1 h, 24 h, 3, 7 and 30 days after publishing, then
+  freezes them; daily follower snapshot; daily token check. The analytics Refresh button and "Sync now" queue a sync.
+- Sample mode: without `META_APP_ID` the whole flow runs on generated accounts (Cafe Delhi with Instagram, Green Leaf Realty
+  with an expiring token), marked as sample data.
+- Not yet: AI tagging of imported posts by pillar and topic (the audit's pillar findings need it), Instagram Stories
+  history (Meta only exposes Stories for 24 hours), notifications for token problems (NT-02).
+
 ### AI Copilot (`/o/[org]/ai`, PRD 6.14, CT-08, AI-10)
 
 - Chat scoped to the whole organisation or one space, with conversation history, reasoning levels (effort) and built-in
@@ -163,8 +188,8 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Cloud storage driver (R2 or S3) for production, and platform-accurate previews per placement (CT-03).
-2. Instagram and Facebook connection, history import, scheduling, readiness checks, publishing queue with BullMQ (6.10),
-   replacing the sample history. Start Meta app review now: it blocks this milestone.
+1. Publishing (6.10): scheduling, readiness checks, publish jobs on the queue, retries and failure alerts. Needs public media
+   URLs, so the cloud storage driver (R2 or S3) comes with it. Meta app review must approve the publishing permissions.
+2. Platform-accurate previews per placement (CT-03), AI tagging of imported posts, notifications (6.18).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

@@ -1,4 +1,8 @@
+import { eq } from "drizzle-orm";
 import Link from "next/link";
+import { withOrg } from "@/db";
+import { socialAccounts } from "@/db/schema";
+import { AutoRefresh } from "@/components/accounts/AccountsClient";
 import { SpaceTabs } from "@/components/shell/SpaceTabs";
 import { getSpaceContext } from "@/server/tenancy";
 import { buttonClass } from "@/components/ui";
@@ -8,6 +12,9 @@ export default async function SpaceLayout({ children, params }: LayoutProps<"/o/
   const { org, space } = await params;
   const ctx = await getSpaceContext(org, space);
   const base = `/o/${org}/s/${space}`;
+  const accounts = await withOrg(ctx.org.id, (tx) => tx.select().from(socialAccounts).where(eq(socialAccounts.spaceId, ctx.space.id)));
+  const importing = accounts.filter((a) => a.syncState === "import_queued" || a.syncState === "importing");
+  const broken = accounts.filter((a) => a.status === "reconnect_needed");
 
   return (
     <div className="flex min-h-full flex-col">
@@ -23,6 +30,9 @@ export default async function SpaceLayout({ children, params }: LayoutProps<"/o/
             <h1 className="font-display text-xl font-bold">{ctx.space.name}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Link href={`${base}/settings/accounts`} className={buttonClass("secondary", "sm")}>
+              Settings
+            </Link>
             <Link href={`${base}/media`} className={buttonClass("secondary", "sm")}>
               Media
             </Link>
@@ -45,6 +55,27 @@ export default async function SpaceLayout({ children, params }: LayoutProps<"/o/
         </div>
         <SpaceTabs base={base} />
       </div>
+      {broken.length > 0 && (
+        <p role="alert" className="flex flex-wrap items-center gap-2 border-b border-line bg-danger-bg px-6 py-2.5 text-sm text-danger">
+          <strong>{broken.map((a) => a.handle).join(", ")}</strong> {broken.length === 1 ? "needs" : "need"} reconnecting: syncing has stopped and posts to{" "}
+          {broken.length === 1 ? "it" : "them"} can’t publish.
+          <Link href={`${base}/settings/accounts`} className="font-semibold underline">
+            Reconnect
+          </Link>
+        </p>
+      )}
+      {importing.length > 0 && (
+        <p role="status" className="flex flex-wrap items-center gap-2 border-b border-line bg-accent-bg px-6 py-2.5 text-sm text-accent-ink">
+          <AutoRefresh active />
+          Importing the last 90 days from {importing.map((a) => a.handle).join(" and ")}
+          {importing.map((a) => a.syncProgress).filter((p) => p?.total).length > 0 &&
+            `: ${importing.reduce((n, a) => n + (a.syncProgress?.done ?? 0), 0)} of ${importing.reduce((n, a) => n + (a.syncProgress?.total ?? 0), 0)} posts`}
+          …
+          <Link href={`${base}/settings/accounts`} className="font-semibold underline">
+            Details
+          </Link>
+        </p>
+      )}
       <div className="flex-1">{children}</div>
     </div>
   );

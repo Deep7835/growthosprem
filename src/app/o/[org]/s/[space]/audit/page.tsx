@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { AuditView } from "@/components/audit/AuditView";
-import { EmptyState } from "@/components/ui";
+import { EmptyState, buttonClass } from "@/components/ui";
 import { getSpaceAudit } from "@/server/audit";
 import { getSpaceContext } from "@/server/tenancy";
 import { addAuditDrafts, toggleRecommendation, undoAuditDrafts } from "./actions";
@@ -23,6 +24,13 @@ export default async function AuditPage({ params }: PageProps<"/o/[org]/s/[space
         <EmptyState
           title="Connect an account to get your audit"
           body={`Once ${ctx.space.name}’s Instagram or Facebook is connected, we import the last 90 days of posts and show what is working, what is not and what to do next.`}
+          action={
+            ctx.can("accounts.connect") ? (
+              <Link href={`/o/${org}/s/${space}/settings/accounts`} className={buttonClass("primary")}>
+                Connect Instagram and Facebook
+              </Link>
+            ) : undefined
+          }
         />
       </div>
     );

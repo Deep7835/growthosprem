@@ -52,14 +52,15 @@ export default async function OverviewPage({ params }: PageProps<"/o/[org]/overv
         .where(and(inArray(contentItems.spaceId, spaceIds), isNotNull(contentItems.scheduledAt), gte(contentItems.scheduledAt, new Date())))
         .orderBy(asc(contentItems.scheduledAt))
         .limit(8),
-      tx.select({ id: socialAccounts.id }).from(socialAccounts).limit(1),
+      // Seeded sample accounts don't count: only a real connection completes the step.
+      tx.select({ id: socialAccounts.id }).from(socialAccounts).where(isNotNull(socialAccounts.accessTokenEnc)).limit(1),
       tx.select({ id: memberships.id }).from(memberships),
     ]);
     return { byCategory, waiting, upcoming, hasAccount: accounts.length > 0, memberCount: members.length };
   });
 
   const checklist = [
-    { label: "Connect a social account", done: data.hasAccount },
+    { label: "Connect a social account", done: data.hasAccount, href: spaces[0] ? `/o/${org}/s/${spaces[0].slug}/settings/accounts` : undefined },
     { label: "Invite a teammate", done: data.memberCount > 1, href: `/o/${org}/settings/members` },
     { label: "Build Brand Brain", done: false },
     { label: "Schedule a first post", done: data.upcoming.length > 0 },

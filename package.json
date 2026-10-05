@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:reset": "rm -rf .data",
-    "dev:roles": "AUTH_MODE=dev next dev"
+    "dev:roles": "AUTH_MODE=dev next dev",
+    "worker": "tsx --env-file-if-exists=.env.local scripts/worker.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

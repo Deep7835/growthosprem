@@ -116,7 +116,7 @@ export function AuditView({
       <div className="flex flex-col gap-2.5">
         {isDemo && (
           <span className="self-start rounded-full border border-dashed border-faint px-2.5 py-0.5 text-xs font-semibold text-muted">
-            Sample data · real import starts when Instagram and Facebook are connected
+            Sample data · connect the real accounts in Settings › Accounts
           </span>
         )}
         <h1 className="max-w-[780px] font-display text-[38px] font-bold leading-tight tracking-tight">
