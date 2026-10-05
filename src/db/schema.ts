@@ -84,6 +84,8 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   // Identity from the auth provider (Clerk). Null for seeded or invited users who have not signed in yet.
   clerkUserId: text("clerk_user_id").unique(),
+  // Profile › calendar preferences (PRD 6.20): colour items by platform or status, first day of the week.
+  preferences: jsonb("preferences").$type<{ calendarColor?: "platform" | "status"; weekStartsOn?: 0 | 6 }>().notNull().default({}),
   createdAt: createdAt(),
 });
 

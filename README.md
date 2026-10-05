@@ -133,6 +133,23 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Calendar (`/o/[org]/s/[space]/calendar`, `/o/[org]/overview/calendar`, PRD OV-04 to OV-08, VW-04, TK-02)
+
+- Month, Week, Day and List views with Today and previous/next; the view and date live in the URL. The organisation
+  calendar sits next to the Dashboard under Overview and combines every space you can see ("Calendars" picks which).
+- Filters: content and/or tasks, assigned to me, unassigned or a person, publishing state, status category, autopost on.
+- Colour by platform or by status, and the first day of the week, are saved per person (Profile calendar preferences).
+- Hover shows a preview card (cover, platforms, status, publishing, caption); click opens the content panel over the
+  calendar, and closing returns to the same view.
+- Drag to move (OV-06): posts and tasks move to a day (keeping their time) or, in Week and Day, to a 15-minute slot. A post
+  already scheduled to publish asks for confirmation and is rescheduled through the same readiness check as the
+  Schedule dialog; if it isn't ready, the reasons and fixes are shown with Retry. Other posts just get a new planned date.
+  Published posts don't move.
+- Day view has a mini month and an "Unscheduled" tray to drag posts onto a time (OV-07); Week view has the tray too.
+- Load errors say what failed and offer Retry (OV-08).
+- Not yet: Google Calendar sync, a keyboard alternative to dragging (use the post's Schedule dialog), tasks without a post
+  opening their own panel.
+
 ### Publishing (content panel, `settings/autopost`, PRD 6.10, PB-03 to PB-12)
 
 - Platforms per post (PB-05): add or remove placements in the content panel; Instagram Reels can also share to the feed.
@@ -219,7 +236,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Calendar views and platform-accurate previews per placement (CT-03), with drag to reschedule.
+1. Platform-accurate previews per placement (CT-03) and the Table view's columns, inline editing and bulk actions (VW-03).
 2. Notifications page and preferences (6.18), AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

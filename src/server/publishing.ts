@@ -65,7 +65,7 @@ export async function getPublishView(ctx: SpaceContext, contentItemId: string) {
 export type PublishView = NonNullable<Awaited<ReturnType<typeof getPublishView>>>;
 
 /** "YYYY-MM-DDTHH:mm" in the space's timezone → UTC. */
-function parseLocal(value: string, timeZone: string) {
+export function parseLocal(value: string, timeZone: string) {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
   if (!m) return null;
   const [, y, mo, d, h, mi] = m.map(Number);
@@ -76,9 +76,13 @@ function parseLocal(value: string, timeZone: string) {
  * PB-03: Post now, Schedule with autopost (published by the queue), or Schedule without
  * (a reminder at that time). Returns the readiness issues instead when it isn't ready (PB-07).
  */
-export async function schedulePost(ctx: SpaceContext, contentItemId: string, input: { mode: ScheduleMode; when?: string }): Promise<{ issues: Issue[] }> {
+export async function schedulePost(
+  ctx: SpaceContext,
+  contentItemId: string,
+  input: { mode: ScheduleMode; when?: string; timeZone?: string },
+): Promise<{ issues: Issue[] }> {
   const now = new Date();
-  const when = input.mode === "now" ? now : input.when ? parseLocal(input.when, ctx.space.timezone) : null;
+  const when = input.mode === "now" ? now : input.when ? parseLocal(input.when, input.timeZone ?? ctx.space.timezone) : null;
   const autopost = input.mode !== "manual";
 
   const plan = await withOrg(ctx.org.id, async (tx) => {

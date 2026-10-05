@@ -44,7 +44,7 @@ export function Sidebar({
         <span className="grid size-[30px] place-items-center rounded-lg bg-ink font-bold text-white">{orgName[0]}</span>
         <span className="font-bold">{orgName}</span>
       </div>
-      <NavLink href={`${base}/overview`} active={pathname === `${base}/overview`}>
+      <NavLink href={`${base}/overview`} active={pathname.startsWith(`${base}/overview`)}>
         Overview
       </NavLink>
       <NavLink href={`${base}/ai`} active={pathname.startsWith(`${base}/ai`)}>
