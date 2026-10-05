@@ -1,8 +1,9 @@
 // A stand-in for Meta used in development until META_APP_ID is set (or with META_FAKE=1).
 // The whole flow runs — login, page picker, history import, syncs, token health — on
 // generated data. Accounts connected this way are marked as sample data.
+import { randomUUID } from "node:crypto";
 import { generateDemoHistory } from "@/db/demo-history";
-import type { Graph, ImportedPost, PageCandidate } from "./graph";
+import { GraphError, type Graph, type ImportedPost, type PageCandidate } from "./graph";
 
 const DAY = 864e5;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -28,7 +29,19 @@ const PAGES: PageCandidate[] = [
 
 const REALTY = ["3BHK walkthrough in Sector 62", "Home loan basics", "Site visit this Saturday", "Before and after: lobby", "Why buy before Diwali", "Client keys handover"];
 
+// Posts published in sample mode, so later syncs find them like real ones. Kept per process.
+type FakePost = ImportedPost & { numbers: Record<string, number> };
+const globalForFake = globalThis as unknown as { __fakePublished?: Map<string, FakePost[]>; __fakeFlaky?: Set<string> };
+const published: Map<string, FakePost[]> = (globalForFake.__fakePublished ??= new Map());
+const flaky: Set<string> = (globalForFake.__fakeFlaky ??= new Set());
+
+const KIND_FORMAT = { ig_post: "post", ig_reel: "reel", ig_story: "story", ig_carousel: "carousel", fb_post: "post", fb_reel: "reel", fb_story: "story", li_post: "post" } as const;
+
 function postsFor(id: string, now: Date) {
+  return [...(published.get(id) ?? []), ...historyFor(id, now)];
+}
+
+function historyFor(id: string, now: Date) {
   if (id === "fake_fb_greenleaf") {
     return REALTY.map((title, i) => {
       const reach = 600 + i * 90;
@@ -110,6 +123,36 @@ export function createFakeGraph(opts: { delayMs?: number; now?: () => Date } = {
         at: new Date(since.getTime() + (i + 1) * DAY),
         followers: Math.round(end * (0.925 + (0.075 * (i + 1)) / days)),
       }));
+    },
+
+    /**
+     * Pretends to publish. Put #samplefail in a caption to see a failure, or #sampleflaky
+     * for a temporary error that succeeds on the automatic retry.
+     */
+    async publish(req, step) {
+      await sleep(delay * 2);
+      if (/#samplefail\b/i.test(req.caption)) {
+        throw new GraphError("Sample mode: this post was set to fail (#samplefail is in the caption).", 100, 400);
+      }
+      const key = `${req.targetId}:${req.caption}`;
+      if (/#sampleflaky\b/i.test(req.caption) && !flaky.has(key)) {
+        flaky.add(key);
+        throw new GraphError("Sample mode: a temporary Meta error (#sampleflaky). It is retried automatically.", 2, 503);
+      }
+      await step("container", req.containerId ?? `fake_container_${randomUUID().slice(0, 8)}`);
+      await step("publish_sent");
+      const externalId = `${req.targetId}_pub_${randomUUID().slice(0, 8)}`;
+      const list = published.get(req.targetId) ?? [];
+      list.unshift({
+        externalId,
+        publishedAt: now(),
+        format: KIND_FORMAT[req.kind] === "post" && req.media.length > 1 ? "carousel" : KIND_FORMAT[req.kind],
+        caption: req.caption,
+        permalink: null,
+        numbers: { reach: 2400, views: 3100, likes: 160, comments: 14, saves: 30, shares: 9 },
+      });
+      published.set(req.targetId, list);
+      return { externalId, permalink: null };
     },
   };
 }

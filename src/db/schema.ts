@@ -230,6 +230,9 @@ export const contentAssignees = pgTable(
   (t) => [primaryKey({ columns: [t.contentItemId, t.userId] })],
 );
 
+// Per-placement publishing result (PB-09); the item's publish state is derived from these.
+export const placementState = pgEnum("placement_state", ["draft", "scheduled", "publishing", "published", "failed"]);
+
 export const placements = pgTable("placements", {
   id: id(),
   orgId: orgId(),
@@ -238,7 +241,19 @@ export const placements = pgTable("placements", {
   socialAccountId: uuid("social_account_id").references(() => socialAccounts.id, { onDelete: "set null" }),
   // Null means the item's shared caption is used (CT-06).
   captionOverride: text("caption_override"),
-  options: jsonb("options").notNull().default({}),
+  // Platform options (PB-05), e.g. { shareToFeed: true } for Instagram Reels.
+  options: jsonb("options").$type<{ shareToFeed?: boolean }>().notNull().default({}),
+  state: placementState("state").notNull().default("draft"),
+  // How far the publish call got, so a retry never posts twice: "container" or "publish_sent".
+  publishStep: text("publish_step"),
+  containerId: text("container_id"),
+  externalId: text("external_id"),
+  permalink: text("permalink"),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  publishedManually: boolean("published_manually").notNull().default(false),
+  error: text("error"),
+  errorRetryable: boolean("error_retryable"),
+  failedAt: timestamp("failed_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -618,4 +633,23 @@ export const jobs = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("jobs_due").on(t.doneAt, t.failedAt, t.priority, t.runAt)],
+);
+
+// In-app notifications (PRD 6.18, the parts publishing needs: PB-03 reminders, PB-10 failures).
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: id(),
+    orgId: orgId(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    spaceId: uuid("space_id").references(() => spaces.id, { onDelete: "cascade" }),
+    // "publish_failed", "publish_reminder", "published", "account".
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    href: text("href"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("notifications_user").on(t.userId, t.createdAt)],
 );

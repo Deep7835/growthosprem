@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Board } from "@/components/board/Board";
 import { ContentPanel } from "@/components/content/ContentPanel";
 import { getContentDetail, getSpaceContent } from "@/server/content";
+import { getPublishView } from "@/server/publishing";
 import { getSpaceContext } from "@/server/tenancy";
 import { createContent, moveContent } from "../actions";
 import { ShareBanner } from "./ShareBanner";
@@ -13,9 +14,11 @@ export default async function BoardPage({ params, searchParams }: PageProps<"/o/
   const base = `/o/${org}/s/${space}`;
   const contentId = typeof query.content === "string" ? query.content : null;
 
-  const [{ statuses, cards }, detail] = await Promise.all([
+  const validId = contentId && /^[0-9a-f-]{36}$/.test(contentId) ? contentId : null;
+  const [{ statuses, cards }, detail, publishing] = await Promise.all([
     getSpaceContent(ctx),
-    contentId && /^[0-9a-f-]{36}$/.test(contentId) ? getContentDetail(ctx, contentId) : null,
+    validId ? getContentDetail(ctx, validId) : null,
+    validId ? getPublishView(ctx, validId) : null,
   ]);
   if (contentId && !detail) notFound();
   const canEdit = ctx.can("content.edit");
@@ -32,7 +35,7 @@ export default async function BoardPage({ params, searchParams }: PageProps<"/o/
         moveAction={moveContent.bind(null, org, space)}
         createAction={createContent.bind(null, org, space)}
       />
-      {detail && (
+      {detail && publishing && (
         <ContentPanel
           key={detail.item.id}
           detail={detail}
@@ -41,6 +44,9 @@ export default async function BoardPage({ params, searchParams }: PageProps<"/o/
           spaceName={ctx.space.name}
           timezone={ctx.space.timezone}
           canEdit={canEdit}
+          canSchedule={ctx.can("content.schedule")}
+          publishing={publishing}
+          requestTime={ctx.requestTime}
           closeHref={`${base}/board`}
         />
       )}

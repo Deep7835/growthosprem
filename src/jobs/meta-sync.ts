@@ -1,6 +1,6 @@
 // Instagram and Facebook jobs (PRD 9): the 90-day history import (OB-07), post metrics at
 // 1 h / 24 h / 3 / 7 / 30 days, the daily follower snapshot and the daily token check.
-import { and, eq, inArray, isNotNull, max } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, like, max } from "drizzle-orm";
 import { withOrg, type Db, type Tx } from "@/db/core";
 import { accountMetricsDaily, activityLog, postMetrics, posts, socialAccounts, spaces } from "@/db/schema";
 import { isoDate, zonedParts } from "@/lib/analytics/time";
@@ -14,6 +14,12 @@ export const JOB = { import: "meta.import", sync: "meta.sync", health: "meta.tok
 
 const DAY = 864e5;
 const FORMAT_NAMES = { reel: "Reel", carousel: "Carousel", post: "Post", story: "Story" } as const;
+
+/** Instagram and Facebook links differ in trailing slashes, query strings and www. */
+export function sameLink(a: string, b: string) {
+  const norm = (u: string) => u.trim().toLowerCase().replace(/^https?:\/\/(www\.|m\.)?/, "").replace(/[?#].*$/, "").replace(/\/+$/, "");
+  return norm(a) === norm(b);
+}
 
 export interface SyncDeps {
   db: Db;
@@ -46,7 +52,7 @@ async function logAccount(tx: Tx, account: Account, action: string, after?: unkn
 }
 
 /** The account can no longer be read: only reconnecting fixes it. Retrying would not help. */
-async function needsReconnect(db: Db, account: Account, reason: string) {
+export async function needsReconnect(db: Db, account: Account, reason: string) {
   await withOrg(db, account.orgId, async (tx) => {
     await tx
       .update(socialAccounts)
@@ -97,6 +103,20 @@ export async function syncAccount(deps: SyncDeps, accountId: string, mode: "impo
     const byExternal = new Map(known.map((k) => [k.externalId, k]));
     const due = list.filter((p) => snapshotDue(p.publishedAt, byExternal.get(p.externalId)?.last ?? null, now));
     await progress(0, due.length);
+
+    // Posts marked as posted manually carry a link; when the real post shows up, it takes over that row.
+    const manual = await scoped((tx) =>
+      tx
+        .select({ id: posts.id, permalink: posts.permalink })
+        .from(posts)
+        .where(and(eq(posts.socialAccountId, account.id), like(posts.externalId, "manual:%"))),
+    );
+    for (const p of list) {
+      const match = p.permalink && manual.find((m) => m.permalink && sameLink(m.permalink, p.permalink!));
+      if (match && !byExternal.has(p.externalId)) {
+        await scoped((tx) => tx.update(posts).set({ externalId: p.externalId, publishedAt: p.publishedAt }).where(eq(posts.id, match.id)));
+      }
+    }
 
     let done = 0;
     for (const p of due) {

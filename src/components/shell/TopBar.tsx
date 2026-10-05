@@ -11,6 +11,7 @@ export function TopBar({
   role,
   devUsers,
   trialDaysLeft,
+  bell,
 }: {
   orgSlug: string;
   user: { name: string; email: string };
@@ -18,6 +19,7 @@ export function TopBar({
   /** Empty unless AUTH_MODE=dev; then the menu switches between seeded users. */
   devUsers: { email: string; name: string }[];
   trialDaysLeft: number | null;
+  bell?: React.ReactNode;
 }) {
   // Clerk's menu (profile, sign out) when signed in through Clerk; the seeded-user switcher with AUTH_MODE=dev.
   return (
@@ -40,6 +42,7 @@ export function TopBar({
         <kbd className="rounded border border-line px-1.5 text-[11px]">Ctrl K</kbd>
       </label>
       <div className="flex-1" />
+      {bell}
       {trialDaysLeft != null && (role === "owner" || role === "admin") && (
         <span
           title="Plans and billing arrive with the billing milestone"

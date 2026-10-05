@@ -1,6 +1,7 @@
 // Facebook Pages and Instagram (Instagram API with Facebook Login) over the Graph API.
 // No Next.js imports and an injectable fetch, so the worker and tests can use it directly.
 import type { Format } from "@/lib/analytics/audit";
+import type { PlacementKind } from "@/lib/placements";
 
 export const GRAPH_VERSION = "v26.0";
 
@@ -72,6 +73,32 @@ export interface PostNumbers {
   shares: number;
 }
 
+export interface PublishRequest {
+  kind: PlacementKind;
+  /** Instagram account id, or the Facebook Page id. */
+  targetId: string;
+  token: string;
+  caption: string;
+  firstComment: string;
+  shareToFeed: boolean;
+  /** Public URLs Meta downloads from, in order. */
+  media: { type: "image" | "video"; url: string }[];
+  /** A container or upload created by an earlier attempt, reused instead of starting again. */
+  containerId: string | null;
+}
+
+export interface PublishResult {
+  externalId: string;
+  permalink: string | null;
+  firstCommentFailed?: boolean;
+}
+
+/**
+ * Called as publishing progresses. "publish_sent" is recorded just before the call that makes
+ * the post public, so a crash after it is never retried blindly (no double posts).
+ */
+export type PublishStep = (step: "container" | "publish_sent", containerId?: string) => Promise<void>;
+
 export interface Graph {
   readonly fake: boolean;
   loginUrl(state: string, redirectUri: string): string;
@@ -88,6 +115,8 @@ export interface Graph {
    * Instagram only reports new followers per day, so its history starts at connection.
    */
   followerHistory(platform: "instagram" | "facebook", id: string, token: string, since: Date): Promise<{ at: Date; followers: number }[]>;
+  /** Publishes one placement (PB-08). Throws GraphError with Meta's reason on failure. */
+  publish(req: PublishRequest, step: PublishStep): Promise<PublishResult>;
 }
 
 type Fetch = typeof fetch;
@@ -120,8 +149,56 @@ export function insightValues(data: { name: string; values?: { value: unknown }[
   return out;
 }
 
-export function createGraph(config: { appId: string; appSecret: string }, fetchImpl: Fetch = fetch): Graph {
+export function createGraph(
+  config: { appId: string; appSecret: string },
+  fetchImpl: Fetch = fetch,
+  opts: { sleep?: (ms: number) => Promise<void>; pollMs?: number; maxPolls?: number } = {},
+): Graph {
   const base = `https://graph.facebook.com/${GRAPH_VERSION}`;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const pollMs = opts.pollMs ?? 4000;
+  const maxPolls = opts.maxPolls ?? 75;
+
+  async function send<T>(pathOrUrl: string, params: Record<string, string>, headers: Record<string, string> = {}): Promise<T> {
+    const url = pathOrUrl.startsWith("https://") ? pathOrUrl : `${base}/${pathOrUrl.replace(/^\//, "")}`;
+    const res = await fetchImpl(url, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded", ...headers },
+      body: new URLSearchParams(params).toString(),
+    });
+    const body = (await res.json().catch(() => ({}))) as { error?: { message?: string; error_user_msg?: string; code?: number; error_subcode?: number } } & T;
+    if (!res.ok || body.error) {
+      const e = body.error ?? {};
+      throw new GraphError(e.error_user_msg ?? e.message ?? `Meta returned ${res.status}.`, e.code ?? null, res.status, e.error_subcode ?? null);
+    }
+    return body;
+  }
+
+  /** Instagram processes videos before they can publish; images are usually ready at once. */
+  async function waitForContainer(id: string, token: string) {
+    for (let i = 0; i < maxPolls; i++) {
+      const r = await get<{ status_code?: string; status?: string }>(id, { access_token: token, fields: "status_code,status" });
+      if (r.status_code === "FINISHED" || r.status_code === "PUBLISHED" || !r.status_code) return;
+      if (r.status_code === "ERROR" || r.status_code === "EXPIRED") {
+        throw new GraphError(`Instagram couldn’t process the media${r.status ? `: ${r.status}` : ""}.`, 100, 400);
+      }
+      await sleep(pollMs);
+    }
+    throw new GraphError("Instagram is still processing the video. It will be tried again.", 2, 503);
+  }
+
+  const absolute = (link: string | undefined | null) => (!link ? null : link.startsWith("http") ? link : `https://www.facebook.com${link}`);
+
+  async function facebookUpload(edge: "video_reels" | "video_stories", pageId: string, token: string, videoUrl: string, step: PublishStep, containerId: string | null) {
+    let videoId = containerId;
+    if (!videoId) {
+      const start = await send<{ video_id: string; upload_url: string }>(`${pageId}/${edge}`, { access_token: token, upload_phase: "start" });
+      videoId = start.video_id;
+      await send<{ success: boolean }>(start.upload_url, {}, { Authorization: `OAuth ${token}`, file_url: videoUrl });
+      await step("container", videoId);
+    }
+    return videoId;
+  }
 
   async function get<T>(pathOrUrl: string, params: Record<string, string> = {}): Promise<T> {
     const url = new URL(pathOrUrl.startsWith("https://") ? pathOrUrl : `${base}/${pathOrUrl.replace(/^\//, "")}`);
@@ -338,6 +415,90 @@ export function createGraph(config: { appId: string; appSecret: string }, fetchI
         until: String(Math.floor(Date.now() / 1000)),
       });
       return (r.data[0]?.values ?? []).map((v) => ({ at: new Date(v.end_time), followers: num(v.value) }));
+    },
+
+    async publish(req, step) {
+      const { token, targetId: id, caption } = req;
+      const [first] = req.media;
+
+      if (req.kind.startsWith("ig_")) {
+        let container = req.containerId;
+        if (!container) {
+          const one = (m: { type: string; url: string }, extra: Record<string, string> = {}) =>
+            send<{ id: string }>(`${id}/media`, {
+              access_token: token,
+              ...(m.type === "video" ? { video_url: m.url, media_type: extra.media_type ?? "VIDEO" } : { image_url: m.url }),
+              ...extra,
+            });
+          if (req.kind === "ig_carousel") {
+            const children: string[] = [];
+            for (const m of req.media) {
+              const child = await one(m, { is_carousel_item: "true" });
+              if (m.type === "video") await waitForContainer(child.id, token);
+              children.push(child.id);
+            }
+            container = (await send<{ id: string }>(`${id}/media`, { access_token: token, media_type: "CAROUSEL", children: children.join(","), caption })).id;
+          } else if (req.kind === "ig_reel") {
+            container = (await one(first, { media_type: "REELS", caption, share_to_feed: String(req.shareToFeed) })).id;
+          } else if (req.kind === "ig_story") {
+            container = (await one(first, { media_type: "STORIES" })).id;
+          } else {
+            container = (await one(first, { caption })).id;
+          }
+          await step("container", container);
+        }
+        await waitForContainer(container, token);
+        await step("publish_sent");
+        const { id: mediaId } = await send<{ id: string }>(`${id}/media_publish`, { access_token: token, creation_id: container });
+        const details = await get<{ permalink?: string }>(mediaId, { access_token: token, fields: "permalink" }).catch(() => ({ permalink: undefined }));
+        let firstCommentFailed = false;
+        if (req.firstComment.trim() && req.kind !== "ig_story") {
+          firstCommentFailed = await send(`${mediaId}/comments`, { access_token: token, message: req.firstComment.trim() }).then(
+            () => false,
+            () => true,
+          );
+        }
+        return { externalId: mediaId, permalink: details.permalink ?? null, firstCommentFailed };
+      }
+
+      let externalId: string;
+      if (req.kind === "fb_reel") {
+        const videoId = await facebookUpload("video_reels", id, token, first.url, step, req.containerId);
+        await step("publish_sent");
+        await send(`${id}/video_reels`, { access_token: token, upload_phase: "finish", video_id: videoId, video_state: "PUBLISHED", description: caption });
+        externalId = videoId;
+      } else if (req.kind === "fb_story") {
+        if (first.type === "video") {
+          const videoId = await facebookUpload("video_stories", id, token, first.url, step, req.containerId);
+          await step("publish_sent");
+          const r = await send<{ post_id?: string }>(`${id}/video_stories`, { access_token: token, upload_phase: "finish", video_id: videoId });
+          externalId = r.post_id ?? videoId;
+        } else {
+          const photo = req.containerId ?? (await send<{ id: string }>(`${id}/photos`, { access_token: token, url: first.url, published: "false" })).id;
+          await step("container", photo);
+          await step("publish_sent");
+          const r = await send<{ post_id?: string }>(`${id}/photo_stories`, { access_token: token, photo_id: photo });
+          externalId = r.post_id ?? photo;
+        }
+      } else if (!first) {
+        await step("publish_sent");
+        externalId = (await send<{ id: string }>(`${id}/feed`, { access_token: token, message: caption })).id;
+      } else if (first.type === "video") {
+        await step("publish_sent");
+        externalId = (await send<{ id: string }>(`${id}/videos`, { access_token: token, file_url: first.url, description: caption })).id;
+      } else if (req.media.length === 1) {
+        await step("publish_sent");
+        const r = await send<{ id: string; post_id?: string }>(`${id}/photos`, { access_token: token, url: first.url, message: caption });
+        externalId = r.post_id ?? r.id;
+      } else {
+        const photos: string[] = [];
+        for (const m of req.media) photos.push((await send<{ id: string }>(`${id}/photos`, { access_token: token, url: m.url, published: "false" })).id);
+        await step("publish_sent");
+        const attached = Object.fromEntries(photos.map((p, i) => [`attached_media[${i}]`, JSON.stringify({ media_fbid: p })]));
+        externalId = (await send<{ id: string }>(`${id}/feed`, { access_token: token, message: caption, ...attached })).id;
+      }
+      const details = await get<{ permalink_url?: string }>(externalId, { access_token: token, fields: "permalink_url" }).catch(() => ({ permalink_url: undefined }));
+      return { externalId, permalink: absolute(details.permalink_url) };
     },
   };
 }

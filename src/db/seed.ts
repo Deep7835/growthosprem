@@ -142,6 +142,8 @@ export async function seed(db: Db): Promise<void> {
           contentItemId: row.id,
           kind,
           socialAccountId: kind.startsWith("ig_") ? ig.id : kind.startsWith("fb_") ? fb.id : null,
+          // The worker queues their publish jobs when they come due (src/publishing/reconcile.ts).
+          state: it.publishState === "scheduled" ? ("scheduled" as const) : ("draft" as const),
         })),
       );
       if (it.assignees.length) {

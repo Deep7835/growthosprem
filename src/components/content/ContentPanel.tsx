@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { addComment, captionAssist, moveContent, updateContentField } from "@/app/o/[org]/s/[space]/actions";
+import { addComment, captionAssist, moveContent, shareForReview, updateContentField } from "@/app/o/[org]/s/[space]/actions";
+import { addPlatform, markManual, removePlatform, retry, schedule, shareToFeed, unschedule } from "@/app/o/[org]/s/[space]/publish-actions";
+import type { PublishView } from "@/server/publishing";
+import { PublishingSection, ScheduleControls } from "./Publishing";
 import { CaptionAssist } from "@/components/ai/CaptionAssist";
 import { attachToContent, detachFromContent, moveContentMedia } from "@/app/o/[org]/s/[space]/media/actions";
 import { ContentMedia } from "@/components/media/ContentMedia";
@@ -33,6 +36,9 @@ export function ContentPanel({
   spaceName,
   timezone,
   canEdit,
+  canSchedule,
+  publishing,
+  requestTime,
   closeHref,
 }: {
   detail: ContentDetail;
@@ -41,6 +47,9 @@ export function ContentPanel({
   spaceName: string;
   timezone: string;
   canEdit: boolean;
+  canSchedule: boolean;
+  publishing: PublishView;
+  requestTime: number;
   closeHref: string;
 }) {
   const { item } = detail;
@@ -61,9 +70,18 @@ export function ContentPanel({
           {detail.projectName ? ` › ${detail.projectName}` : ""}
         </p>
         <div className="flex items-center gap-2">
-          <span className={`${buttonClass("secondary", "sm")} cursor-not-allowed opacity-60`} title="Arrives with the publishing milestone">
-            Schedule · soon
-          </span>
+          <ScheduleControls
+            org={org}
+            space={space}
+            view={publishing}
+            timeZone={timezone}
+            scheduleText={formatSchedule(item.scheduledAt, timezone)}
+            canSchedule={canSchedule}
+            requestTime={requestTime}
+            schedule={schedule.bind(null, org, space, item.id)}
+            unschedule={unschedule.bind(null, org, space, item.id)}
+            share={shareForReview.bind(null, org, space)}
+          />
           <Link href={closeHref} scroll={false} aria-label="Close panel" className={buttonClass("ghost", "sm")}>
             ✕
           </Link>
@@ -72,7 +90,7 @@ export function ContentPanel({
 
       <div className="grid grid-cols-1 lg:grid-cols-[28fr_42fr_30fr]">
         {/* Media and preview (CT-02, CT-03) */}
-        <section aria-label="Media and preview" className="flex flex-col gap-4 border-line p-5 lg:border-r">
+        <section id="panel-media" aria-label="Media and preview" className="flex flex-col gap-4 border-line p-5 lg:border-r">
           <ContentMedia
             org={org}
             space={space}
@@ -115,7 +133,7 @@ export function ContentPanel({
           />
           <dl className="grid grid-cols-[120px_1fr] items-center gap-x-3 gap-y-3 px-2 text-sm">
             <dt className="text-muted">Status</dt>
-            <dd className="flex flex-wrap items-center gap-2">
+            <dd id="panel-status" className="flex flex-wrap items-center gap-2">
               <StatusSelect
                 key={item.statusId}
                 statuses={detail.statuses}
@@ -127,24 +145,41 @@ export function ContentPanel({
             </dd>
             <dt className="text-muted">Assignees</dt>
             <dd>{detail.assignees.length ? <AvatarStack people={detail.assignees} /> : <span className="text-muted">Unassigned</span>}</dd>
-            <dt className="text-muted">Platforms</dt>
-            <dd className="flex flex-wrap gap-1">
-              {detail.placements.length ? (
-                detail.placements.map((p) => <PlacementChip key={p.id} kind={p.kind as PlacementKind} />)
-              ) : (
-                <span className="text-muted">None yet</span>
-              )}
-            </dd>
             <dt className="text-muted">Schedule</dt>
             <dd>
               {formatSchedule(item.scheduledAt, timezone) ?? <span className="text-muted">Unscheduled</span>}
-              {item.scheduledAt && <span className="text-muted"> IST · Autopost {item.autopost ? "on" : "off"}</span>}
+              {item.scheduledAt && (
+                <span className="text-muted">
+                  {" "}
+                  {timezone === "Asia/Kolkata" ? "IST" : timezone} · Autopost {item.autopost ? "on" : "off"}
+                </span>
+              )}
             </dd>
             <dt className="text-muted">Pillar</dt>
             <dd>{item.pillar ?? <span className="text-muted">None</span>}</dd>
           </dl>
 
-          <div className="flex flex-col gap-1">
+          <PublishingSection
+            org={org}
+            space={space}
+            view={publishing}
+            canEdit={canEdit}
+            canSchedule={canSchedule}
+            add={addPlatform.bind(null, org, space, item.id)}
+            placementActions={Object.fromEntries(
+              publishing.placements.map((p) => [
+                p.id,
+                {
+                  retry: retry.bind(null, org, space, p.id),
+                  markManual: markManual.bind(null, org, space, p.id),
+                  remove: removePlatform.bind(null, org, space, p.id),
+                  shareToFeed: shareToFeed.bind(null, org, space, p.id),
+                },
+              ]),
+            )}
+          />
+
+          <div id="panel-caption" className="flex flex-col gap-1">
             <h3 className="px-2 text-sm font-semibold">Caption</h3>
             <InlineField
               key={`caption-${item.caption}`}

@@ -5,6 +5,8 @@ import type { Db } from "@/db/core";
 import type { Graph } from "@/lib/meta/graph";
 import { JOB, checkTokenHealth, scheduleRecurring, syncAccount, syncGaveUp } from "./meta-sync";
 import { claim, complete, fail, type Job } from "./queue";
+import { reconcileScheduled } from "@/publishing/reconcile";
+import { PUBLISH_JOB, failureFollowup, publishPlacement, sendReminder } from "@/publishing/run";
 
 export interface WorkerDeps {
   getDb: () => Promise<Db>;
@@ -14,8 +16,19 @@ export interface WorkerDeps {
 
 /** Runs one job; throws if it fails or no handler exists for its kind. */
 export async function runJob(job: Job, db: Db, graph: Graph | null): Promise<void> {
-  const { accountId } = job.payload as { accountId?: string };
+  const payload = job.payload as Record<string, string>;
+  switch (job.kind) {
+    case PUBLISH_JOB.reminder:
+      return sendReminder({ db }, payload as { contentItemId: string; orgId: string; scheduledAt: string });
+    case PUBLISH_JOB.followup:
+      return failureFollowup({ db }, payload as { placementId: string; failedAt: string });
+  }
   if (!graph) throw new Error("Instagram and Facebook are not set up (META_APP_ID).");
+  if (job.kind === PUBLISH_JOB.publish) {
+    await publishPlacement({ db, graph }, payload as { placementId: string; scheduledAt: string }, { n: job.attempts, max: job.maxAttempts });
+    return;
+  }
+  const { accountId } = payload;
   if (!accountId) throw new Error(`Job ${job.kind} has no accountId.`);
   switch (job.kind) {
     case JOB.import:
@@ -72,6 +85,7 @@ export function startWorker(deps: WorkerDeps, opts: { pollMs?: number; scheduleM
         if (Date.now() - lastSchedule >= scheduleMs) {
           lastSchedule = Date.now();
           if (deps.getGraph()) await scheduleRecurring(db);
+          await reconcileScheduled(db);
         }
         const ran = await drain(deps, id, 20);
         if (ran > 0) continue;

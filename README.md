@@ -133,6 +133,37 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Publishing (content panel, `settings/autopost`, PRD 6.10, PB-03 to PB-12)
+
+- Platforms per post (PB-05): add or remove placements in the content panel; Instagram Reels can also share to the feed.
+  The space's single connected account per platform is used automatically.
+- Three ways to publish (PB-03): **Post now**, **Schedule with autopost** (the queue publishes it), or **Schedule without**
+  (the people on the post get a reminder at that time, with Copy caption and Download media in the panel).
+- Readiness check (PB-06, `src/lib/publishing/rules.ts`): account connected and publishable; media type, count, ratio,
+  duration and size per placement; caption and hashtag limits; status allowed to autopost; client approval of the current
+  version when the space requires it; time in the future. It runs when scheduling and again just before publishing. The
+  panel shows it live ("Ready to post automatically" or what to fix). Failures open "Fix these issues before posting"
+  with one fix button per issue (PB-07).
+- Publish jobs (PB-08): one per placement at the scheduled time, ahead of syncs. Temporary errors retry at 30 s, 2 min
+  and 8 min; permanent ones fail at once with Meta's reason. The step before the final publish call is recorded, so a
+  crash is never retried blindly into a double post. A safety net re-queues due placements whose job went missing and
+  fails ones that missed their time by more than 6 hours instead of posting late.
+- Results per placement (PB-09, PB-11): Published with "View post", Failed with the reason and Retry, and "Partially
+  published" on the post when only some went out. Published posts join analytics and the hourly sync collects their numbers.
+- Failures (PB-10): in-app notification to the assignees and the space's Managers at once (bell in the top bar), and an
+  email if still unresolved after 30 minutes (Resend).
+- Mark as posted manually (PB-12) with the post link. When the hourly sync later finds a post with the same link, it
+  takes over that row, so analytics doesn't count it twice.
+- Autopost settings (PB-04): autopost on for new content, which statuses can autopost, require client approval, and
+  whether Editors can schedule.
+- Meta downloads media from signed links that expire after 6 hours (`/api/media/public/[id]`); images are converted to
+  JPEG because Instagram accepts nothing else. Meta can't reach localhost, so live publishing needs `APP_URL` set to a
+  public address (a tunnel such as ngrok or Cloudflare Tunnel works for testing). The readiness check says so.
+- Sample mode: publishing works without Meta keys. Put `#samplefail` in a caption to see a failure, or `#sampleflaky` for
+  a temporary error that succeeds on the automatic retry.
+- Not yet: LinkedIn, per-placement caption overrides in the UI, a full Notifications page and preferences (6.18), and
+  space-level defaults per placement beyond "share Reels to feed".
+
 ### Instagram and Facebook connection (`/o/[org]/s/[space]/settings/accounts`, PRD SP-04, OB-05, OB-07, section 9)
 
 - "Connect Instagram and Facebook" goes through Facebook Login (Graph API v26.0, Instagram API with Facebook Login). The
@@ -188,8 +219,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Publishing (6.10): scheduling, readiness checks, publish jobs on the queue, retries and failure alerts. Needs public media
-   URLs, so the cloud storage driver (R2 or S3) comes with it. Meta app review must approve the publishing permissions.
-2. Platform-accurate previews per placement (CT-03), AI tagging of imported posts, notifications (6.18).
+1. Calendar views and platform-accurate previews per placement (CT-03), with drag to reschedule.
+2. Notifications page and preferences (6.18), AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

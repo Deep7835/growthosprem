@@ -7,7 +7,7 @@ import { seed } from "@/db/seed";
 import { sealToken } from "@/lib/crypto";
 import { createFakeGraph } from "@/lib/meta/fake";
 import { GraphError, type Graph } from "@/lib/meta/graph";
-import { checkTokenHealth, enqueueImport, scheduleRecurring, syncAccount } from "./meta-sync";
+import { checkTokenHealth, enqueueImport, sameLink, scheduleRecurring, syncAccount } from "./meta-sync";
 import { PermanentError } from "./queue";
 import { drain } from "./worker";
 
@@ -112,5 +112,12 @@ describe("Instagram and Facebook import and sync", () => {
     expect(await count(s.posts, fb.id)).toBe(6);
     const [job] = await db.select().from(s.jobs);
     expect(job.doneAt).not.toBeNull();
+  });
+});
+
+describe("matching a manually posted link", () => {
+  it("ignores www, query strings and trailing slashes", () => {
+    expect(sameLink("https://www.instagram.com/p/AbC/?igsh=x", "https://instagram.com/p/abc")).toBe(true);
+    expect(sameLink("https://www.instagram.com/p/one/", "https://www.instagram.com/p/two/")).toBe(false);
   });
 });
