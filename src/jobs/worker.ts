@@ -8,6 +8,7 @@ import { claim, complete, fail, type Job } from "./queue";
 import { reconcileScheduled } from "@/publishing/reconcile";
 import { PUBLISH_JOB, failureFollowup, publishPlacement, sendReminder } from "@/publishing/run";
 import { NOTIFY_JOB, notificationChores, sendDigest } from "@/notifications/worker";
+import { purgeDeletedSpaces } from "@/spaces/purge";
 
 export interface WorkerDeps {
   getDb: () => Promise<Db>;
@@ -90,6 +91,7 @@ export function startWorker(deps: WorkerDeps, opts: { pollMs?: number; scheduleM
           if (deps.getGraph()) await scheduleRecurring(db);
           await reconcileScheduled(db);
           await notificationChores(db);
+          await purgeDeletedSpaces(db);
         }
         const ran = await drain(deps, id, 20);
         if (ran > 0) continue;

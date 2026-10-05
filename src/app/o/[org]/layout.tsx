@@ -8,13 +8,14 @@ import { Sidebar } from "@/components/shell/Sidebar";
 import { markRead } from "./notifications/actions";
 import { TopBar } from "@/components/shell/TopBar";
 import { listDevUsers } from "@/server/session";
-import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
+import { getOrgContext, listArchivedSpaces, listVisibleSpaces } from "@/server/tenancy";
 
 export default async function OrgLayout({ children, params }: LayoutProps<"/o/[org]">) {
   const { org: orgSlug } = await params;
-  const [ctx, spaces, devUsers] = await Promise.all([
+  const [ctx, spaces, archivedSpaces, devUsers] = await Promise.all([
     getOrgContext(orgSlug),
     listVisibleSpaces(orgSlug),
+    listArchivedSpaces(orgSlug),
     listDevUsers(),
   ]);
 
@@ -53,6 +54,8 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/o/[o
           spaces={spaces.map((s) => ({ slug: s.slug, name: s.name, avatarColor: s.avatarColor, projects: openProjects.filter((p) => p.spaceId === s.id) }))}
           canInvite={ctx.role !== "editor"}
           unread={unread}
+          canManageSpaces={ctx.role === "owner" || ctx.role === "admin"}
+          archived={archivedSpaces.map((s) => ({ slug: s.slug, name: s.name, avatarColor: s.avatarColor }))}
         />
         <main className="min-w-0 flex-1">{children}</main>
       </div>

@@ -197,6 +197,13 @@
       "when": 1791225928292,
       "tag": "0027_tasks_data_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791228293232,
+      "tag": "0028_space_settings",
+      "breakpoints": true
     }
   ]
 }

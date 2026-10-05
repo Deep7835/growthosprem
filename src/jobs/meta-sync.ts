@@ -1,6 +1,6 @@
 // Instagram and Facebook jobs (PRD 9): the 90-day history import (OB-07), post metrics at
 // 1 h / 24 h / 3 / 7 / 30 days, the daily follower snapshot and the daily token check.
-import { and, eq, inArray, isNotNull, like, max } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, like, max } from "drizzle-orm";
 import { withOrg, type Db, type Tx } from "@/db/core";
 import { accountMetricsDaily, activityLog, organizations, postMetrics, posts, socialAccounts, spaces } from "@/db/schema";
 import { isoDate, zonedParts } from "@/lib/analytics/time";
@@ -261,7 +261,9 @@ export async function scheduleRecurring(db: Db, now = new Date()) {
   const accounts = await db
     .select({ id: socialAccounts.id })
     .from(socialAccounts)
-    .where(and(isNotNull(socialAccounts.accessTokenEnc), inArray(socialAccounts.status, ["active", "expiring"])));
+    .innerJoin(spaces, eq(spaces.id, socialAccounts.spaceId))
+    // Deleted spaces stop syncing at once; archived ones keep their numbers up to date.
+    .where(and(isNotNull(socialAccounts.accessTokenEnc), inArray(socialAccounts.status, ["active", "expiring"]), isNull(spaces.deletedAt)));
   const hour = now.toISOString().slice(0, 13);
   const day = hour.slice(0, 10);
   await enqueue(

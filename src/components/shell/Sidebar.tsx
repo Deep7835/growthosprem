@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 export interface SidebarSpace {
   slug: string;
@@ -31,6 +32,8 @@ export function Sidebar({
   spaces,
   canInvite,
   unread = 0,
+  canManageSpaces = false,
+  archived = [],
 }: {
   orgSlug: string;
   orgName: string;
@@ -39,7 +42,12 @@ export function Sidebar({
   canInvite: boolean;
   /** UI-02: unread count beside Notifications. */
   unread?: number;
+  /** Owners and Admins create, archive and delete spaces (SP-01, SP-05). */
+  canManageSpaces?: boolean;
+  /** SP-05: shown under "Show archived spaces". */
+  archived?: SidebarSpace[];
 }) {
+  const [showArchived, setShowArchived] = useState(false);
   const pathname = usePathname();
   const base = `/o/${orgSlug}`;
 
@@ -64,7 +72,14 @@ export function Sidebar({
         AI Copilot
       </NavLink>
 
-      <div className="px-2 pb-1.5 pt-4 text-xs font-semibold uppercase tracking-wider text-muted">Social spaces</div>
+      <div className="flex items-center justify-between px-2 pb-1.5 pt-4 text-xs font-semibold uppercase tracking-wider text-muted">
+        Social spaces
+        {canManageSpaces && (
+          <Link href={`${base}/settings/spaces?new=1`} aria-label="Create a space" title="Create a space" className="grid size-6 place-items-center rounded-md text-base normal-case text-ink-2 hover:bg-subtle">
+            +
+          </Link>
+        )}
+      </div>
       {spaces.length === 0 && <p className="px-2 text-sm text-muted">You haven’t been added to a space yet.</p>}
       {spaces.map((sp) => {
         const spaceBase = `${base}/s/${sp.slug}`;
@@ -99,7 +114,26 @@ export function Sidebar({
           </div>
         );
       })}
+      {archived.length > 0 && (
+        <button type="button" onClick={() => setShowArchived((v) => !v)} aria-expanded={showArchived} className="px-2 py-1.5 text-left text-xs font-semibold text-muted hover:text-ink">
+          {showArchived ? "Hide archived spaces" : `Show archived spaces (${archived.length})`}
+        </button>
+      )}
+      {showArchived &&
+        archived.map((sp) => (
+          <NavLink key={sp.slug} href={`${base}/s/${sp.slug}/board`} active={pathname.startsWith(`${base}/s/${sp.slug}`)}>
+            <span className="grid size-[22px] place-items-center rounded-md text-xs font-bold text-ink opacity-60" style={{ background: sp.avatarColor }}>
+              {sp.name[0]}
+            </span>
+            <span className="text-muted">{sp.name}</span>
+          </NavLink>
+        ))}
       <div className="mt-auto flex flex-col gap-0.5 pt-6">
+        {canManageSpaces && (
+          <NavLink href={`${base}/settings/spaces`} active={pathname.startsWith(`${base}/settings/spaces`)}>
+            Spaces
+          </NavLink>
+        )}
         <NavLink href={`${base}/settings/members`} active={pathname.startsWith(`${base}/settings/members`)}>
           {canInvite ? "Invite members" : "Members"}
         </NavLink>

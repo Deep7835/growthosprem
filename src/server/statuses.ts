@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, ne } from "drizzle-orm";
 import { withOrg, type Tx } from "@/db";
 import { contentItems, spaceMembers, spaces, statuses, tasks } from "@/db/schema";
 import { STATUS_TEMPLATES, TASK_STATUSES, type ReviewRole, type StatusCategory, type StatusSeed, type StatusTemplateKey } from "@/lib/status-templates";
@@ -40,7 +40,7 @@ export async function loadStatuses(ctx: SpaceContext) {
   return withOrg(ctx.org.id, async (tx) => {
     const [content, task] = await Promise.all([setOf(tx, ctx.space.id, "content"), setOf(tx, ctx.space.id, "task")]);
     const [contentUse, taskUse] = await Promise.all([usage(tx, "content", content.map((s) => s.id)), usage(tx, "task", task.map((s) => s.id))]);
-    const all = await tx.select({ id: spaces.id, name: spaces.name }).from(spaces).where(ne(spaces.id, ctx.space.id)).orderBy(asc(spaces.name));
+    const all = await tx.select({ id: spaces.id, name: spaces.name }).from(spaces).where(and(ne(spaces.id, ctx.space.id), isNull(spaces.deletedAt))).orderBy(asc(spaces.name));
     let mine = all;
     if (ctx.role !== "owner" && ctx.role !== "admin") {
       const memberOf = new Set((await tx.select({ spaceId: spaceMembers.spaceId }).from(spaceMembers).where(eq(spaceMembers.userId, ctx.user.id))).map((m) => m.spaceId));

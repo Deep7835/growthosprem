@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 
 // Space settings tabs (SP-02). Ones without a path arrive with later milestones.
 const TABS = [
-  ["Space", null],
+  ["Space", "settings/space"],
   ["Accounts", "settings/accounts"],
   ["Autopost", "settings/autopost"],
   ["Projects", "settings/projects"],
-  ["Members", null],
+  ["Members", "settings/members"],
   ["Statuses", "settings/statuses"],
   ["Brand Brain", "brand"],
 ] as const;

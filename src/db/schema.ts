@@ -128,7 +128,14 @@ export const spaces = pgTable(
     editorsCanSchedule: boolean("editors_can_schedule").notNull().default(false),
     // Last manual analytics refresh; limited to once every 15 minutes (AN-10).
     metricsRefreshedAt: timestamp("metrics_refreshed_at", { withTimezone: true }),
+    // SP-03: a colour per platform for calendars, and platforms hidden from pickers.
+    platformColors: jsonb("platform_colors").$type<Partial<Record<"instagram" | "facebook" | "linkedin", string>>>().notNull().default({}),
+    hiddenPlatforms: text("hidden_platforms").array().notNull().default(sql`'{}'::text[]`),
+    // SP-05: archived spaces are read-only and hidden from the tree until restored.
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    // SP-06: deleted spaces are hidden at once and removed for good 30 days later.
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedBy: uuid("deleted_by"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("spaces_org_slug").on(t.orgId, t.slug)],

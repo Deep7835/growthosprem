@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { getSystemDb, withOrg } from "@/db";
@@ -49,11 +49,22 @@ export const getOrgContext = cache(async (orgSlug: string) => unwrap(await resol
 
 export type OrgContext = Awaited<ReturnType<typeof getOrgContext>>;
 
+/** Archived spaces the user can see (SP-05, "Show archived spaces"). */
+export const listArchivedSpaces = cache(async (orgSlug: string) => {
+  const ctx = await getOrgContext(orgSlug);
+  return withOrg(ctx.org.id, async (tx) => {
+    const archived = await tx.select().from(spaces).where(and(isNotNull(spaces.archivedAt), isNull(spaces.deletedAt))).orderBy(asc(spaces.name));
+    if (ctx.role === "owner" || ctx.role === "admin") return archived;
+    const mine = new Set((await tx.select({ spaceId: spaceMembers.spaceId }).from(spaceMembers).where(eq(spaceMembers.userId, ctx.user.id))).map((m) => m.spaceId));
+    return archived.filter((sp) => mine.has(sp.id));
+  });
+});
+
 /** Spaces the user can see: all for Owner and Admin, otherwise the ones they were added to. */
 export const listVisibleSpaces = cache(async (orgSlug: string) => {
   const ctx = await getOrgContext(orgSlug);
   return withOrg(ctx.org.id, async (tx) => {
-    const all = await tx.select().from(spaces).where(isNull(spaces.archivedAt)).orderBy(asc(spaces.createdAt));
+    const all = await tx.select().from(spaces).where(and(isNull(spaces.archivedAt), isNull(spaces.deletedAt))).orderBy(asc(spaces.createdAt));
     if (ctx.role === "owner" || ctx.role === "admin") return all;
     const mine = await tx
       .select({ spaceId: spaceMembers.spaceId })
@@ -64,12 +75,14 @@ export const listVisibleSpaces = cache(async (orgSlug: string) => {
   });
 });
 
+const READ_ONLY = new Set<Action>(["content.view", "analytics.view"]);
+
 const resolveSpace = cache(async (orgSlug: string, spaceSlug: string) => {
   const org = await resolveOrg(orgSlug);
   if (!org.ok) return org;
   const ctx = org.value;
   const result = await withOrg(ctx.org.id, async (tx) => {
-    const [space] = await tx.select().from(spaces).where(eq(spaces.slug, spaceSlug));
+    const [space] = await tx.select().from(spaces).where(and(eq(spaces.slug, spaceSlug), isNull(spaces.deletedAt)));
     if (!space) return null;
     const [membership] = await tx
       .select()
@@ -87,7 +100,8 @@ const resolveSpace = cache(async (orgSlug: string, spaceSlug: string) => {
       // Set on project pages (PJ-02): views then show only that project's work.
       project: null as Project | null,
       scope,
-      can: (action: Action) => can(ctx.role, action, scope),
+      // SP-05: archived spaces can be looked at, not changed.
+      can: (action: Action) => (result.space.archivedAt && !READ_ONLY.has(action) ? false : can(ctx.role, action, scope)),
     },
   } as const;
 });
@@ -117,6 +131,8 @@ export const getProjectContext = cache(async (orgSlug: string, spaceSlug: string
 /** For server actions: the space context, or an error if the user may not do `action`. */
 export async function requireSpaceAction(orgSlug: string, spaceSlug: string, action: Action) {
   const ctx = await getSpaceContext(orgSlug, spaceSlug);
+  // SP-05: an archived space is read-only until it's restored (from Settings › Spaces).
+  if (ctx.space.archivedAt && !READ_ONLY.has(action)) throw new Error(`${ctx.space.name} is archived, so it’s read-only. Restore it to make changes.`);
   if (!ctx.can(action)) throw new Error(`Your role (${ctx.role}) cannot ${action} in ${ctx.space.name}.`);
   return ctx;
 }

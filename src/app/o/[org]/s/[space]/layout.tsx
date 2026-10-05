@@ -7,6 +7,8 @@ import { SpaceTabs, SpaceTitle } from "@/components/shell/SpaceTabs";
 import { getSpaceContext } from "@/server/tenancy";
 import { buttonClass } from "@/components/ui";
 import { quickCreate, shareForReview } from "./actions";
+import { archiveSpace } from "../../settings/spaces/actions";
+import { ArchivedBanner } from "@/components/spaces/ArchivedBanner";
 
 export default async function SpaceLayout({ children, params }: LayoutProps<"/o/[org]/s/[space]">) {
   const { org, space } = await params;
@@ -28,7 +30,7 @@ export default async function SpaceLayout({ children, params }: LayoutProps<"/o/
         <div className="flex flex-wrap items-center justify-between gap-3 py-3">
           <SpaceTitle base={base} name={ctx.space.name} color={ctx.space.avatarColor} projects={headerProjects} />
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`${base}/settings/accounts`} className={buttonClass("secondary", "sm")}>
+            <Link href={`${base}/settings/space`} className={buttonClass("secondary", "sm")}>
               Settings
             </Link>
             <Link href={`${base}/strategy`} className={buttonClass("secondary", "sm")}>
@@ -66,6 +68,9 @@ export default async function SpaceLayout({ children, params }: LayoutProps<"/o/
           create={quickCreate.bind(null, org, space)}
         />
       </div>
+      {ctx.space.archivedAt && (
+        <ArchivedBanner name={ctx.space.name} restore={ctx.role === "owner" || ctx.role === "admin" ? archiveSpace.bind(null, org, ctx.space.id, false) : null} />
+      )}
       {broken.length > 0 && (
         <p role="alert" className="flex flex-wrap items-center gap-2 border-b border-line bg-danger-bg px-6 py-2.5 text-sm text-danger">
           <strong>{broken.map((a) => a.handle).join(", ")}</strong> {broken.length === 1 ? "needs" : "need"} reconnecting: syncing has stopped and posts to{" "}

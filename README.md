@@ -133,6 +133,24 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Spaces (Settings › Spaces, space settings › Space and Members, PRD 6.3, SP-01 to SP-06)
+
+- "Create your new social space" (Owner and Admins, from the sidebar "+" or Settings › Spaces): avatar initial and
+  colour, name, time zone, members (existing Managers and Editors; Owners and Admins are in every space), and statuses
+  from a template or copied from another space. The footer shows "N members, N statuses"; "Create and open" or "Create
+  only".
+- Space tab (SP-03): name, avatar colour, time zone, a colour per platform used on the space's calendar (and its posts on
+  the organisation calendar), and platforms hidden from the "Add platform" picker.
+- Members tab: everyone who works in the space; Managers (in their spaces), Admins and the Owner add existing members or
+  take them out, which unassigns their open tasks and posts there.
+- Archive (SP-05): hidden from the sidebar ("Show archived spaces" reveals them), read-only for everyone (actions refuse
+  changes; editing controls disappear; share links stop working), and its scheduled posts are unscheduled so nothing
+  goes out. Restore from the banner or Settings › Spaces.
+- Delete (SP-06): from Archived, after typing the name exactly. The space disappears at once; the Owner can restore it
+  for 30 days from "Recently deleted", then the worker removes it and its media for good.
+- Not yet: uploading a logo as the avatar, custom planning-only platforms (a WhatsApp channel, a blog), duplicating a
+  space (SP-07, V2).
+
 ### Projects, statuses and the Create menu (PRD 6.4, 6.5, UI2-02 to UI2-04, ST-01 to ST-06, PJ-01 to PJ-05)
 
 - Projects (Space settings › Projects): "Create your new project" with name, goal, dates, colour and "Create a media
@@ -389,7 +407,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Space settings (SP-01, SP-03, SP-05, SP-06): create, archive and delete spaces, the Space and Members tabs.
+1. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).
 2. AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
-4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).
+4. Space logos and custom planning-only platforms (SP-01, SP-03).

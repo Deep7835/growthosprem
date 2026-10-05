@@ -49,9 +49,15 @@ interface Props {
   canMove: boolean;
   /** Festivals and moments in view (SG-04), shown as markers. */
   moments?: { date: string; name: string; approximate?: boolean }[];
+  /** SP-03: each space's platform colours, by space slug; missing ones use the defaults. */
+  platformColors?: Record<string, Partial<Record<Platform, string>>>;
   moveContent: Move;
   moveTask: Move;
   setPrefs: (prefs: { calendarColor?: "platform" | "status"; weekStartsOn?: WeekStart }) => Promise<void>;
+}
+
+function platformColor(props: Pick<Props, "platformColors">, spaceSlug: string | null, p: Platform) {
+  return (spaceSlug && props.platformColors?.[spaceSlug]?.[p]) || PLATFORM_COLOR[p];
 }
 
 export function Calendar(props: Props) {
@@ -106,7 +112,7 @@ export function Calendar(props: Props) {
   }, [data]);
 
   const color = (e: CalendarEvent) =>
-    e.type === "task" ? "#9CA3AF" : colorBy === "status" ? (e.status?.color ?? "#9CA3AF") : e.platforms[0] ? PLATFORM_COLOR[e.platforms[0]] : "#9CA3AF";
+    e.type === "task" ? "#9CA3AF" : colorBy === "status" ? (e.status?.color ?? "#9CA3AF") : e.platforms[0] ? platformColor(props, e.space.slug, e.platforms[0]) : "#9CA3AF";
 
   function commit(event: CalendarEvent, date: string, minutes: number) {
     const when = localValue(date, minutes);
@@ -178,7 +184,7 @@ export function Calendar(props: Props) {
         {!compact && e.platforms.length > 1 && (
           <span aria-hidden className="flex gap-0.5">
             {e.platforms.slice(1).map((p) => (
-              <span key={p} className="size-1.5 rounded-full" style={{ background: PLATFORM_COLOR[p] }} />
+              <span key={p} className="size-1.5 rounded-full" style={{ background: platformColor(props, e.space.slug, p) }} />
             ))}
           </span>
         )}
@@ -500,7 +506,7 @@ function Toolbar(props: Props & { anchorTitle: string; href: (c: Record<string, 
         <span className="flex w-full flex-wrap items-center gap-3 text-xs text-muted">
           {(Object.keys(PLATFORM_COLOR) as Platform[]).map((p) => (
             <span key={p} className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm" style={{ background: PLATFORM_COLOR[p] }} />
+              <span className="size-2.5 rounded-sm" style={{ background: platformColor(props, props.scope === "space" ? (Object.keys(props.platformColors ?? {})[0] ?? null) : null, p) }} />
               {PLATFORM_NAMES[p]}
             </span>
           ))}

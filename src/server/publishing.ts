@@ -64,6 +64,8 @@ export async function getPublishView(ctx: SpaceContext, contentItemId: string) {
         shareToFeed: p.options.shareToFeed ?? true,
       })),
       connectedPlatforms: [...new Set(accounts.filter(canPublish).map((a) => a.platform))],
+      // SP-03: platforms the space hides from the "Add platform" picker.
+      hiddenPlatforms: b.space.hiddenPlatforms,
       // CT-03: how each placement will look.
       previews: previewsFor({
         item: b.item,

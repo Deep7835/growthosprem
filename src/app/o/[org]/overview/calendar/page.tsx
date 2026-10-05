@@ -57,6 +57,7 @@ export default async function OrgCalendarPage({ params, searchParams }: PageProp
       spaces={visible.map((v) => ({ slug: v.slug, name: v.name, color: v.avatarColor, selected: !chosen || chosen.includes(v.slug) }))}
       // Everyone edits content in the spaces they can see; each move is checked against that space.
       canMove
+      platformColors={Object.fromEntries(visible.map((v) => [v.slug, v.platformColors]))}
       moveContent={moveContent.bind(null, org)}
       moveTask={moveTask.bind(null, org)}
       setPrefs={setCalendarPrefs.bind(null, org)}

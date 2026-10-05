@@ -47,6 +47,7 @@ export async function CalendarView({ ctx, query }: { ctx: SpaceContext; query: Q
         filters={filters}
         canMove={ctx.can("content.edit")}
         moments={moments.map((m) => ({ date: m.date, name: m.name, approximate: m.approximate }))}
+        platformColors={{ [ctx.space.slug]: ctx.space.platformColors }}
         moveContent={moveContent.bind(null, org)}
         moveTask={moveTask.bind(null, org)}
         setPrefs={setCalendarPrefs.bind(null, org)}

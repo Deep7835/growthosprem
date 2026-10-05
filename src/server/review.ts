@@ -14,13 +14,14 @@ export async function resolveShareLink(token: string) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return { state: "missing" as const };
   const db = await getSystemDb();
   const [row] = await db
-    .select({ link: shareLinks, orgName: organizations.name, brandColor: organizations.brandColor, spaceName: spaces.name, timezone: spaces.timezone })
+    .select({ link: shareLinks, orgName: organizations.name, brandColor: organizations.brandColor, spaceName: spaces.name, timezone: spaces.timezone, archivedAt: spaces.archivedAt, deletedAt: spaces.deletedAt })
     .from(shareLinks)
     .innerJoin(organizations, eq(organizations.id, shareLinks.orgId))
     .innerJoin(spaces, eq(spaces.id, shareLinks.spaceId))
     .where(eq(shareLinks.token, token));
   if (!row) return { state: "missing" as const };
-  if (row.link.revokedAt) return { state: "revoked" as const, ...row };
+  // A deleted or archived space's links stop working (SP-05, SP-06).
+  if (row.link.revokedAt || row.archivedAt || row.deletedAt) return { state: "revoked" as const, ...row };
   if (row.link.expiresAt && row.link.expiresAt < new Date()) return { state: "expired" as const, ...row };
   return { state: "ok" as const, ...row };
 }

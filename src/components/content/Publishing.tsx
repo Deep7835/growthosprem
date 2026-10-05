@@ -410,7 +410,7 @@ export function PublishingSection({
             className="h-8 rounded-lg border border-line bg-surface px-2 text-[13px] font-semibold"
           >
             <option value="">+ Add platform</option>
-            {(["instagram", "facebook", "linkedin"] as Platform[]).map((platform) => (
+            {(["instagram", "facebook", "linkedin"] as Platform[]).filter((platform) => !view.hiddenPlatforms.includes(platform)).map((platform) => (
               <optgroup key={platform} label={`${PLATFORM_NAMES[platform]}${view.connectedPlatforms.includes(platform) ? "" : " (not connected)"}`}>
                 {options
                   .filter((k) => PLACEMENTS[k].platform === platform)

@@ -134,6 +134,8 @@ export async function sweepTasks(db: Db, now = new Date()) {
     .where(
       and(
         eq(tasks.done, false),
+        isNull(spaces.archivedAt),
+        isNull(spaces.deletedAt),
         isNotNull(tasks.assigneeId),
         isNotNull(tasks.dueAt),
         gte(tasks.dueAt, new Date(now.getTime() - 3 * DAY)),
