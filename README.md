@@ -133,6 +133,24 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Previews (`/o/[org]/s/[space]/previews`, content panel, review page, PRD VW-05, CT-03, SH-03)
+
+- Platform-accurate previews (`src/components/preview/PostPreview.tsx`) for Instagram Post, Carousel, Reel and Story,
+  Facebook Post, Reel and Story, and LinkedIn Post: each app's own header, buttons and fonts, its caption cut-off
+  ("… more" / "See more" / "…see more" at the same length), highlighted hashtags, mentions and links (Hindi too), the
+  first comment, carousels you can swipe, Facebook's 1–4+ image grids, and the crop each platform applies (Instagram
+  feed 4:5 to 1.91:1 using the first item's shape; Reels and Stories 9:16).
+- "Safe zones" on Reels and Stories shade the parts the app's buttons and caption cover.
+- Each preview lists the media and caption rules the platform would reject (from the readiness check); Stories remind
+  that captions don't show.
+- Content panel: Media and Preview tabs on the left, switchable between the post's placements (CT-03). "Fix media"
+  buttons switch back to Media.
+- Previews view (VW-05): every post as it will look, filtered by placement and by Upcoming, Next 30 days, Unscheduled or
+  All; click a title to open the post.
+- Client review page (SH-03): clients see the same previews (without internal warnings), with downloads below.
+- Not yet: an Instagram profile-grid preview (imported posts have no images to show beside new ones), per-platform
+  caption tabs (CT-06; previews already honour per-placement captions), exporting a preview as an image.
+
 ### Calendar (`/o/[org]/s/[space]/calendar`, `/o/[org]/overview/calendar`, PRD OV-04 to OV-08, VW-04, TK-02)
 
 - Month, Week, Day and List views with Today and previous/next; the view and date live in the URL. The organisation
@@ -236,7 +254,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Platform-accurate previews per placement (CT-03) and the Table view's columns, inline editing and bulk actions (VW-03).
+1. The Table view's columns, inline editing and bulk actions (VW-03), and per-platform captions (CT-06).
 2. Notifications page and preferences (6.18), AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

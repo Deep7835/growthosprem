@@ -10,6 +10,7 @@ import { checkReadiness, fullCaption, type Issue } from "@/lib/publishing/rules"
 import { canPublish, loadBundle, readinessInput, type Bundle } from "@/publishing/bundle";
 import { mediaReachable } from "@/publishing/media-url";
 import { formatFor, PUBLISH_JOB, syncItemState } from "@/publishing/run";
+import { mediaSrc, previewsFor } from "./previews";
 import { logActivity } from "./activity";
 import { returnToReviewIfApproved } from "./approval";
 import type { SpaceContext } from "./tenancy";
@@ -57,6 +58,15 @@ export async function getPublishView(ctx: SpaceContext, contentItemId: string) {
         shareToFeed: p.options.shareToFeed ?? true,
       })),
       connectedPlatforms: [...new Set(accounts.filter(canPublish).map((a) => a.platform))],
+      // CT-03: how each placement will look.
+      previews: previewsFor({
+        item: b.item,
+        placements: b.placements.map((p) => ({ ...p, kind: p.kind as PlacementKind })),
+        assets: b.media,
+        accounts,
+        space: b.space,
+        src: mediaSrc(b.orgSlug, b.space.slug),
+      }),
       mediaIds: b.media.map((m) => ({ id: m.id, filename: m.filename })),
     };
   });

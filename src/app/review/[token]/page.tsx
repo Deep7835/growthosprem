@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PreviewSwitcher } from "@/components/preview/PostPreview";
 import { PlacementChip, buttonClass } from "@/components/ui";
 import { formatDateTime, formatSchedule } from "@/lib/format";
 import type { PlacementKind } from "@/lib/placements";
@@ -36,7 +37,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps<"/r
     );
   }
 
-  const [items, reviewer] = await Promise.all([loadReviewItems(link.link.orgId, link.link.id), readReviewer()]);
+  const [items, reviewer] = await Promise.all([loadReviewItems(link.link.orgId, link.link.id, token), readReviewer()]);
   const approved = items.filter((i) => i.decision?.kind === "approved").length;
   const changes = items.filter((i) => i.decision?.kind === "changes_requested").length;
   const allDone = items.length > 0 && approved + changes === items.length;
@@ -110,26 +111,13 @@ export default async function ReviewPage({ params, searchParams }: PageProps<"/r
                       ))}
                     </span>
                   </div>
-                  {item.media.length > 0 && (
-                    <div className="mt-3 flex snap-x snap-mandatory gap-1 overflow-x-auto">
-                      {item.media.map((m) =>
-                        m.type === "video" ? (
-                          <video
-                            key={m.id}
-                            src={`/api/review/${token}/media/${m.id}`}
-                            poster={m.hasThumb ? `/api/review/${token}/media/${m.id}?v=thumb` : undefined}
-                            controls
-                            playsInline
-                            preload="metadata"
-                            className="aspect-[4/5] w-full shrink-0 snap-center bg-ink object-contain"
-                          />
-                        ) : m.type === "image" ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img key={m.id} src={`/api/review/${token}/media/${m.id}`} alt="" className="aspect-[4/5] w-full shrink-0 snap-center object-cover" />
-                        ) : null,
-                      )}
-                    </div>
-                  )}
+                  <div className="px-3 pt-3">
+                    {item.previews.length > 0 ? (
+                      <PreviewSwitcher posts={item.previews} compact />
+                    ) : (
+                      <p className="rounded-xl bg-subtle p-4 text-sm text-muted">Platforms to be confirmed.</p>
+                    )}
+                  </div>
                   {item.media.length > 0 && (
                     <p className="flex flex-wrap items-center justify-center gap-x-3 px-4 pt-1.5 text-xs text-muted">
                       {item.media.length > 1 && <span>{item.media.length} items · swipe to see all</span>}
@@ -142,10 +130,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps<"/r
                   )}
                   <div className="flex flex-col gap-3 p-4">
                     <h2 className="text-base font-semibold">{item.title}</h2>
-                    <p className="whitespace-pre-line text-sm leading-relaxed text-ink-2">
-                      {item.caption || <span className="text-muted">Caption coming soon.</span>}
-                      {item.hashtags && <span className="mt-1 block text-data">{item.hashtags}</span>}
-                    </p>
+                    {!item.caption && <p className="text-sm text-muted">Caption coming soon.</p>}
                     {item.changedSinceDecision && (
                       <p className="rounded-lg bg-accent-bg px-3 py-2 text-[13px] text-accent-ink">Updated since your last review. Please take another look.</p>
                     )}

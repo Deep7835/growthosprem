@@ -2,11 +2,13 @@ import Link from "next/link";
 import { addComment, captionAssist, moveContent, shareForReview, updateContentField } from "@/app/o/[org]/s/[space]/actions";
 import { addPlatform, markManual, removePlatform, retry, schedule, shareToFeed, unschedule } from "@/app/o/[org]/s/[space]/publish-actions";
 import type { PublishView } from "@/server/publishing";
+import { PreviewSwitcher } from "@/components/preview/PostPreview";
+import { LeftTabs } from "./LeftTabs";
 import { PublishingSection, ScheduleControls } from "./Publishing";
 import { CaptionAssist } from "@/components/ai/CaptionAssist";
 import { attachToContent, detachFromContent, moveContentMedia } from "@/app/o/[org]/s/[space]/media/actions";
 import { ContentMedia } from "@/components/media/ContentMedia";
-import { Avatar, AvatarStack, PlacementChip, PublishState, buttonClass } from "@/components/ui";
+import { AvatarStack, PublishState, buttonClass } from "@/components/ui";
 import { formatDateTime, formatSchedule } from "@/lib/format";
 import { CAPTION_LIMITS, PLACEMENTS, PLATFORM_NAMES, type PlacementKind, type Platform } from "@/lib/placements";
 import type { ContentDetail } from "@/server/content";
@@ -58,9 +60,6 @@ export function ContentPanel({
   const counters = platforms.map((p) => ({ label: PLATFORM_NAMES[p], limit: CAPTION_LIMITS[p] }));
   const privateComments = detail.comments.filter((c) => c.visibility === "private");
   const publicComments = detail.comments.filter((c) => c.visibility === "public");
-  const firstPlacement = detail.placements[0]?.kind as PlacementKind | undefined;
-  const account = detail.accounts.find((a) => a.id === detail.placements[0]?.socialAccountId);
-  const cover = detail.media.find((m) => m.type === "image" && m.status === "ready");
 
   return (
     <PanelFrame closeHref={closeHref} title={item.title}>
@@ -91,35 +90,22 @@ export function ContentPanel({
       <div className="grid grid-cols-1 lg:grid-cols-[28fr_42fr_30fr]">
         {/* Media and preview (CT-02, CT-03) */}
         <section id="panel-media" aria-label="Media and preview" className="flex flex-col gap-4 border-line p-5 lg:border-r">
-          <ContentMedia
-            org={org}
-            space={space}
-            attached={detail.media}
-            library={detail.library}
-            canEdit={canEdit}
-            attach={attachToContent.bind(null, org, space, item.id)}
-            detach={detachFromContent.bind(null, org, space, item.id)}
-            move={moveContentMedia.bind(null, org, space, item.id)}
+          <LeftTabs
+            start={detail.media.length > 0 && publishing.previews.length > 0 ? "preview" : "media"}
+            media={
+            <ContentMedia
+              org={org}
+              space={space}
+              attached={detail.media}
+              library={detail.library}
+              canEdit={canEdit}
+              attach={attachToContent.bind(null, org, space, item.id)}
+              detach={detachFromContent.bind(null, org, space, item.id)}
+              move={moveContentMedia.bind(null, org, space, item.id)}
+            />
+            }
+            preview={<PreviewSwitcher posts={publishing.previews} />}
           />
-          {firstPlacement && (
-            <div className="rounded-xl border border-line">
-              <div className="flex items-center gap-2 border-b border-line-soft px-3 py-2">
-                <Avatar name={spaceName} color="#F2A93B" size={26} />
-                <span className="text-sm font-semibold">{account?.handle ?? spaceName}</span>
-                <span className="ml-auto">
-                  <PlacementChip kind={firstPlacement} />
-                </span>
-              </div>
-              {cover && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={`/api/o/${org}/s/${space}/media/${cover.id}`} alt="" className="aspect-[4/5] w-full object-cover" />
-              )}
-              <p className="whitespace-pre-line px-3 py-3 text-sm leading-relaxed text-ink-2">
-                {item.caption || <span className="text-muted">The caption preview appears here.</span>}
-                {item.hashtags && <span className="mt-1 block text-data">{item.hashtags}</span>}
-              </p>
-            </div>
-          )}
         </section>
 
         {/* Details */}

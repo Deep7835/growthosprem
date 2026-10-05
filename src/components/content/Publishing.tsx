@@ -21,6 +21,7 @@ const STATE: Record<string, [string, string]> = {
 
 /** Jump to the part of the panel that fixes an issue (PB-07). */
 function focusSection(id: string) {
+  if (id === "panel-media") window.dispatchEvent(new Event("panel:show-media"));
   const el = document.getElementById(id);
   el?.scrollIntoView({ behavior: "smooth", block: "center" });
   (el?.querySelector("textarea, input, select, button") as HTMLElement | null)?.focus({ preventScroll: true });

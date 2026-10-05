@@ -177,7 +177,7 @@ export function checkReadiness(input: ReadinessInput): Issue[] {
         fix: { kind: "caption", label: "Edit caption" },
       });
     }
-    if (platform === "instagram" && (caption.match(/#[\p{L}\p{N}_]+/gu) ?? []).length > LIMITS.igHashtags) {
+    if (platform === "instagram" && (caption.match(/#[\p{L}\p{M}\p{N}_]+/gu) ?? []).length > LIMITS.igHashtags) {
       issues.push({ code: "caption.hashtags", placementId: p.id, message: "Instagram allows up to 30 hashtags.", fix: { kind: "caption", label: "Edit hashtags" } });
     }
     if (p.kind === "fb_post" && !caption && input.media.length === 0) {
