@@ -127,6 +127,20 @@
       "when": 1791212130235,
       "tag": "0017_content_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791213253857,
+      "tag": "0018_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791213256244,
+      "tag": "0019_rls_notes",
+      "breakpoints": true
     }
   ]
 }

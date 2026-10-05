@@ -13,7 +13,7 @@ export interface BellItem {
   when: string;
 }
 
-const ICON: Record<string, string> = { publish_failed: "!", publish_reminder: "⏰", published: "✓" };
+const ICON: Record<string, string> = { publish_failed: "!", publish_reminder: "⏰", published: "✓", mention: "@" };
 
 /** The parts of notifications (PRD 6.18) publishing needs: failures, reminders, published. */
 export function NotificationBell({ items, unread, markRead }: { items: BellItem[]; unread: number; markRead: (id?: string) => Promise<void> }) {

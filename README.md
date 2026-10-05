@@ -133,6 +133,18 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Notes (`/o/[org]/s/[space]/notes`, PRD VW-06)
+
+- Rich-text notes per space for briefs and meeting notes, optionally tied to a project; pin, search, filter by project,
+  delete with confirmation. Templates: Campaign brief, Meeting notes, Monthly check-in.
+- Editor (Tiptap): headings, lists, checklists, quotes, links, undo. "/" opens the block menu; "@" mentions someone in
+  the space (they get a notification, once per mention); "[[" links a post, which opens its panel; ":" inserts emoji.
+- Autosave after a short pause with "Saved" / "Couldn't save · Retry", and a warning before closing the tab with unsaved
+  changes. Later save wins (as CT-13).
+- Documents are sanitised on the server: only known blocks and marks, safe link targets (no `javascript:`), a size limit,
+  and mentions only of people in the space.
+- Not yet: real-time co-editing (CT-15, V2), notes in the search palette (SR-02), attaching files, comments on notes.
+
 ### Table (`/o/[org]/s/[space]/table`, PRD VW-02, VW-03)
 
 - One row per post with cover, title, status, platforms, schedule (space time), assignees, project, tags, pillar and
@@ -271,7 +283,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Per-platform captions (CT-06), Notes (VW-06) and the Idea Bank (VW-07).
+1. Per-platform captions (CT-06) and the Idea Bank (VW-07).
 2. Notifications page and preferences (6.18), AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

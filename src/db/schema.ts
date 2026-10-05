@@ -667,3 +667,26 @@ export const notifications = pgTable(
   },
   (t) => [index("notifications_user").on(t.userId, t.createdAt)],
 );
+
+// Notes (VW-06): rich-text briefs and meeting notes per space, optionally for a project.
+// `content` is the editor's document (ProseMirror JSON); `text` is its plain text for search.
+export const notes = pgTable(
+  "notes",
+  {
+    id: id(),
+    orgId: orgId(),
+    spaceId: uuid("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    title: text("title").notNull().default(""),
+    content: jsonb("content").notNull().default({ type: "doc", content: [] }),
+    text: text("text").notNull().default(""),
+    // People mentioned, so only new mentions notify.
+    mentionIds: uuid("mention_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    pinned: boolean("pinned").notNull().default(false),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("notes_space").on(t.spaceId, t.updatedAt)],
+);
