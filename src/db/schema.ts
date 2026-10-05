@@ -78,6 +78,13 @@ export const organizations = pgTable("organizations", {
 });
 
 // Global identities; tenant access is granted through memberships.
+/** A person's saved Table view for one space (VW-02): columns, filters and sort. */
+export interface TableView {
+  columns?: string[];
+  filters?: Record<string, string>;
+  sort?: string;
+}
+
 export const users = pgTable("users", {
   id: id(),
   email: text("email").notNull().unique(),
@@ -85,7 +92,10 @@ export const users = pgTable("users", {
   // Identity from the auth provider (Clerk). Null for seeded or invited users who have not signed in yet.
   clerkUserId: text("clerk_user_id").unique(),
   // Profile › calendar preferences (PRD 6.20): colour items by platform or status, first day of the week.
-  preferences: jsonb("preferences").$type<{ calendarColor?: "platform" | "status"; weekStartsOn?: 0 | 6 }>().notNull().default({}),
+  preferences: jsonb("preferences")
+    .$type<{ calendarColor?: "platform" | "status"; weekStartsOn?: 0 | 6; tables?: Record<string, TableView> }>()
+    .notNull()
+    .default({}),
   createdAt: createdAt(),
 });
 
@@ -218,6 +228,8 @@ export const contentItems = pgTable(
     createdBy: uuid("created_by").references(() => users.id),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    // Archived posts leave the Board, Calendar and Previews but can be restored from the Table (VW-03).
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (t) => [index("content_items_space_status").on(t.spaceId, t.statusId)],
 );

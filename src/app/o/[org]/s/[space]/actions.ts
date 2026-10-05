@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { and, asc, eq, max } from "drizzle-orm";
+import { and, asc, eq, isNull, max } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -147,7 +147,7 @@ export async function shareForReview(org: string, space: string) {
     const items = await tx
       .select({ id: contentItems.id })
       .from(contentItems)
-      .where(eq(contentItems.statusId, reviewStatus.id))
+      .where(and(eq(contentItems.statusId, reviewStatus.id), isNull(contentItems.archivedAt)))
       .orderBy(asc(contentItems.scheduledAt));
     if (items.length === 0) return { error: "nothing-in-review" as const };
 

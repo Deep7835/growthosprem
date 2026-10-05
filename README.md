@@ -133,6 +133,23 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Table (`/o/[org]/s/[space]/table`, PRD VW-02, VW-03)
+
+- One row per post with cover, title, status, platforms, schedule (space time), assignees, project, tags, pillar and
+  publishing. "Columns" shows or hides each one.
+- Inline editing: title, status, schedule (date picker, Clear to remove the date or unschedule), assignees, project,
+  tags (with suggestions) and pillar. Rescheduling a post that's scheduled to publish goes through the readiness check,
+  like the calendar; problems show with their fixes. Edits after client approval send the post back to review (SH-07).
+- Search plus filters for assignee, platform, tag, project, status, date (upcoming, next 7 or 30 days, past, no date),
+  publishing state and archived posts; sort by last updated, schedule date, created date or title. Columns, filters
+  and sort are saved per person for each space.
+- Multi-select (shift-click for a range) with a bulk bar: change status, assign, move to project, reschedule by a
+  number of days, add a tag, archive or restore, and delete (with confirmation). Each post succeeds or fails on its own,
+  and the failures stay selected with their reasons.
+- Archived posts leave the Board, Calendar, Previews, Overview and the Copilot's view, and can be restored from the
+  Table. Posts scheduled to publish must be unscheduled before archiving or deleting.
+- Not yet: column reordering and resizing, an organisation-wide table, CSV export.
+
 ### Previews (`/o/[org]/s/[space]/previews`, content panel, review page, PRD VW-05, CT-03, SH-03)
 
 - Platform-accurate previews (`src/components/preview/PostPreview.tsx`) for Instagram Post, Carousel, Reel and Story,
@@ -254,7 +271,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. The Table view's columns, inline editing and bulk actions (VW-03), and per-platform captions (CT-06).
+1. Per-platform captions (CT-06), Notes (VW-06) and the Idea Bank (VW-07).
 2. Notifications page and preferences (6.18), AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

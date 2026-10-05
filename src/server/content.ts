@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { withOrg, type Tx } from "@/db";
 import {
   activityLog,
@@ -47,7 +47,7 @@ async function loadCards(tx: Tx, spaceId: string): Promise<CardItem[]> {
     .select({ item: contentItems, projectName: projects.name })
     .from(contentItems)
     .leftJoin(projects, eq(projects.id, contentItems.projectId))
-    .where(eq(contentItems.spaceId, spaceId))
+    .where(and(eq(contentItems.spaceId, spaceId), isNull(contentItems.archivedAt)))
     .orderBy(asc(contentItems.position), asc(contentItems.createdAt));
   const ids = items.map((r) => r.item.id);
   if (ids.length === 0) return [];

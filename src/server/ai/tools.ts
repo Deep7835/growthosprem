@@ -1,6 +1,6 @@
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import { z } from "zod";
 import { withOrg } from "@/db";
 import { aiActions, brandBrains, contentItems, placements, socialAccounts, statuses } from "@/db/schema";
@@ -169,7 +169,7 @@ export async function runTool(scope: CopilotScope, name: string, input: unknown,
           const now = new Date();
           const [statusList, items, accounts] = await Promise.all([
             tx.select().from(statuses).where(and(eq(statuses.spaceId, ctx.space.id), eq(statuses.appliesTo, "content"))).orderBy(asc(statuses.position)),
-            tx.select().from(contentItems).where(eq(contentItems.spaceId, ctx.space.id)),
+            tx.select().from(contentItems).where(and(eq(contentItems.spaceId, ctx.space.id), isNull(contentItems.archivedAt))),
             tx.select().from(socialAccounts).where(eq(socialAccounts.spaceId, ctx.space.id)),
           ]);
           const soon = items.filter((i) => i.scheduledAt && i.scheduledAt >= now && i.scheduledAt.getTime() - now.getTime() < 14 * 864e5);
@@ -228,7 +228,7 @@ export async function runTool(scope: CopilotScope, name: string, input: unknown,
         const args = ListPostsInput.parse(input ?? {});
         const ctx = await resolveSpace(scope, args.space, "analytics.view");
         const rows = await withOrg(ctx.org.id, async (tx) => {
-          const filters = [eq(contentItems.spaceId, ctx.space.id)];
+          const filters = [eq(contentItems.spaceId, ctx.space.id), isNull(contentItems.archivedAt)];
           if (args.from) filters.push(gte(contentItems.scheduledAt, new Date(`${args.from}T00:00:00Z`)));
           if (args.to) filters.push(lte(contentItems.scheduledAt, new Date(`${args.to}T23:59:59Z`)));
           const items = await tx

@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
 import { withOrg } from "@/db";
 import { contentItems, memberships, socialAccounts, statuses } from "@/db/schema";
@@ -30,13 +30,13 @@ export default async function OverviewPage({ params }: PageProps<"/o/[org]/overv
         .select({ category: statuses.category, count: sql<number>`count(*)::int` })
         .from(contentItems)
         .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-        .where(inArray(contentItems.spaceId, spaceIds))
+        .where(and(inArray(contentItems.spaceId, spaceIds), isNull(contentItems.archivedAt)))
         .groupBy(statuses.category),
       tx
         .select({ id: contentItems.id, title: contentItems.title, spaceId: contentItems.spaceId, scheduledAt: contentItems.scheduledAt })
         .from(contentItems)
         .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-        .where(and(inArray(contentItems.spaceId, spaceIds), eq(statuses.reviewRole, "in_review")))
+        .where(and(inArray(contentItems.spaceId, spaceIds), eq(statuses.reviewRole, "in_review"), isNull(contentItems.archivedAt)))
         .orderBy(asc(contentItems.scheduledAt)),
       tx
         .select({
@@ -49,7 +49,7 @@ export default async function OverviewPage({ params }: PageProps<"/o/[org]/overv
         })
         .from(contentItems)
         .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-        .where(and(inArray(contentItems.spaceId, spaceIds), isNotNull(contentItems.scheduledAt), gte(contentItems.scheduledAt, new Date())))
+        .where(and(inArray(contentItems.spaceId, spaceIds), isNotNull(contentItems.scheduledAt), gte(contentItems.scheduledAt, new Date()), isNull(contentItems.archivedAt)))
         .orderBy(asc(contentItems.scheduledAt))
         .limit(8),
       // Seeded sample accounts don't count: only a real connection completes the step.

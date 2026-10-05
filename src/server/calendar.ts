@@ -91,7 +91,7 @@ export async function loadCalendar(
             .select({ item: contentItems, status: statuses })
             .from(contentItems)
             .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-            .where(and(inArray(contentItems.spaceId, ids), gte(contentItems.scheduledAt, from), lt(contentItems.scheduledAt, to)))
+            .where(and(inArray(contentItems.spaceId, ids), gte(contentItems.scheduledAt, from), lt(contentItems.scheduledAt, to), isNull(contentItems.archivedAt)))
             .orderBy(asc(contentItems.scheduledAt))
         : [],
       wantContent
@@ -99,7 +99,7 @@ export async function loadCalendar(
             .select({ item: contentItems, status: statuses })
             .from(contentItems)
             .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-            .where(and(inArray(contentItems.spaceId, ids), isNull(contentItems.scheduledAt)))
+            .where(and(inArray(contentItems.spaceId, ids), isNull(contentItems.scheduledAt), isNull(contentItems.archivedAt)))
             .orderBy(asc(contentItems.position))
             .limit(50)
         : [],
