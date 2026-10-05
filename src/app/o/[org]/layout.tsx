@@ -1,6 +1,8 @@
 import { and, asc, inArray, isNull } from "drizzle-orm";
 import { withOrg } from "@/db";
 import { projects } from "@/db/schema";
+import Link from "next/link";
+import { PLANS } from "@/lib/billing/plans";
 import { NotificationBell } from "@/components/shell/NotificationBell";
 import { ago, typeOf } from "@/lib/notifications";
 import { bellData } from "@/server/notifications";
@@ -38,6 +40,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/o/[o
         role={ctx.role}
         devUsers={devUsers}
         trialDaysLeft={ctx.trialDaysLeft}
+        billing={{ phase: ctx.billing.phase, planName: PLANS[ctx.billing.plan].name }}
         bell={
           <NotificationBell
             unread={unread}
@@ -47,6 +50,18 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/o/[o
           />
         }
       />
+      {ctx.billing.locked && (
+        <p role="alert" className="flex flex-wrap items-center justify-center gap-2 border-b border-danger bg-danger-bg px-4 py-2.5 text-sm text-danger">
+          <strong>{ctx.trialDaysLeft === 0 ? "Your free trial has ended." : "Your plan has ended."}</strong> Everything is read-only until a plan is chosen.
+          {ctx.role === "owner" ? (
+            <Link href={`/o/${orgSlug}/settings/billing`} className="font-semibold underline">
+              Choose a plan
+            </Link>
+          ) : (
+            <span>Ask the Owner to choose a plan.</span>
+          )}
+        </p>
+      )}
       <div className="flex flex-1 flex-col md:flex-row">
         <Sidebar
           orgSlug={orgSlug}

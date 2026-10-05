@@ -74,6 +74,11 @@ export const organizations = pgTable("organizations", {
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
   // Monthly AI budget in credits, a hard cap (AI-13). 1 credit = US$0.01 of model usage.
   aiMonthlyCredits: integer("ai_monthly_credits").notNull().default(1000),
+  // Billing details for invoices (PRD 6.20): legal name, GSTIN in India, address and email.
+  billingDetails: jsonb("billing_details")
+    .$type<{ legalName?: string; gstin?: string; email?: string; address?: string; stateCode?: string }>()
+    .notNull()
+    .default({}),
   createdAt: createdAt(),
 });
 
@@ -855,4 +860,55 @@ export const spaceMoments = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("space_moments_space").on(t.spaceId, t.date)],
+);
+
+// Billing (PRD 6.20, OB-10, TM-04). One subscription per organisation; "sample" is the provider
+// until Razorpay (India) and Stripe (elsewhere) are connected. Amounts are in paise or cents.
+export const billingProvider = pgEnum("billing_provider", ["sample", "razorpay", "stripe"]);
+export const subscriptionStatus = pgEnum("subscription_status", ["active", "past_due", "canceled"]);
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: id(),
+    orgId: orgId(),
+    plan: text("plan").$type<"starter" | "growth" | "agency">().notNull(),
+    interval: text("interval").$type<"month" | "year">().notNull(),
+    currency: text("currency").$type<"INR" | "USD">().notNull(),
+    status: subscriptionStatus("status").notNull().default("active"),
+    extraSeats: integer("extra_seats").notNull().default(0),
+    currentPeriodStart: timestamp("current_period_start", { withTimezone: true }).notNull(),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }).notNull(),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    provider: billingProvider("provider").notNull().default("sample"),
+    providerRef: text("provider_ref"),
+    // What the person paid with, for display only: never card numbers.
+    paymentMethod: jsonb("payment_method").$type<{ kind: "card" | "upi"; label: string }>(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("subscriptions_org").on(t.orgId)],
+);
+
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: id(),
+    orgId: orgId(),
+    number: text("number").notNull(),
+    status: text("status").$type<"paid" | "open" | "void">().notNull(),
+    currency: text("currency").$type<"INR" | "USD">().notNull(),
+    periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+    periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+    lines: jsonb("lines").$type<{ label: string; quantity: number; unit: number; amount: number }[]>().notNull(),
+    taxes: jsonb("taxes").$type<{ label: string; rate: number; amount: number }[]>().notNull(),
+    subtotal: integer("subtotal").notNull(),
+    total: integer("total").notNull(),
+    // Who it was billed to, as it was when issued.
+    billedTo: jsonb("billed_to").$type<{ name: string; legalName?: string; gstin?: string; email?: string; address?: string }>().notNull(),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("invoices_number").on(t.orgId, t.number), index("invoices_org").on(t.orgId, t.issuedAt)],
 );

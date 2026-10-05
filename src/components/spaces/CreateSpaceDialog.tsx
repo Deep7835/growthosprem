@@ -12,6 +12,8 @@ export interface CreateSpaceOptions {
   people: { id: string; name: string; email: string; role: string }[];
   templates: { key: string; label: string; description: string; count: number }[];
   spaces: { id: string; name: string; count: number }[];
+  /** What another space adds to the bill (billing is per active space). */
+  priceNote?: string | null;
 }
 
 /** SP-01: "Create your new social space". */
@@ -134,6 +136,7 @@ export function CreateSpaceDialog({ options, add, onClose }: { options: CreateSp
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
           <span className="text-sm text-muted">
             {members.length} member{members.length === 1 ? "" : "s"}, {statusCount} statuses
+            {options.priceNote && <span className="block text-xs">{options.priceNote}</span>}
           </span>
           <span className="flex gap-2">
             <button type="button" onClick={onClose} className={buttonClass("ghost")}>

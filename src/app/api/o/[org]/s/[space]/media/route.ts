@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { withOrg } from "@/db";
 import { mediaAssets, mediaFolders } from "@/db/schema";
-import { ACCEPTED, STORAGE_LIMIT_BYTES } from "@/lib/media-types";
+import { ACCEPTED } from "@/lib/media-types";
+import { storageLimit } from "@/server/billing";
 import { looksLike, processImage } from "@/server/media";
 import { spaceContextForRoute } from "@/server/tenancy";
 import { TooLargeError, assetKey, assetPrefix, getStorage } from "@/storage";
@@ -33,9 +34,11 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   const num = (k: string) => z.coerce.number().positive().max(100_000).nullable().catch(null).parse(q.get(k));
   const filename = cleanFilename(q.get("filename"));
 
+  // MD-05: the plan's storage for the organisation's active spaces.
+  const limitBytes = await storageLimit(ctx);
   const asset = await withOrg(ctx.org.id, async (tx) => {
     const [{ used }] = await tx.select({ used: sql<number>`coalesce(sum(${mediaAssets.sizeBytes}), 0)::bigint` }).from(mediaAssets);
-    if (Number(used) + declared > STORAGE_LIMIT_BYTES) return null;
+    if (Number(used) + declared > limitBytes) return null;
     const folder = folderId
       ? (await tx.select().from(mediaFolders).where(and(eq(mediaFolders.id, folderId), eq(mediaFolders.spaceId, ctx.space.id))))[0]
       : undefined;

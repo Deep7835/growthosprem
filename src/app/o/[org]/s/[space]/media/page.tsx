@@ -1,7 +1,7 @@
 import { getSystemDb } from "@/db";
 import { listLibrary } from "@/db/media";
 import { MediaLibrary } from "@/components/media/MediaLibrary";
-import { STORAGE_LIMIT_BYTES } from "@/lib/media-types";
+import { storageLimit } from "@/server/billing";
 import { getSpaceContext } from "@/server/tenancy";
 import { createFolder, deleteAsset, updateAsset } from "./actions";
 
@@ -35,7 +35,7 @@ export default async function MediaPage({ params }: PageProps<"/o/[org]/s/[space
         usedIn: a.usedIn,
       }))}
       usedBytes={library.usedBytes}
-      limitBytes={STORAGE_LIMIT_BYTES}
+      limitBytes={await storageLimit(ctx)}
       canEdit={ctx.can("content.edit")}
       createFolder={createFolder.bind(null, org, space)}
       updateAsset={updateAsset.bind(null, org, space)}

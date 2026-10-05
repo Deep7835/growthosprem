@@ -3,7 +3,8 @@ import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { getSystemDb, withOrg } from "@/db";
-import { memberships, organizations, projects, spaceMembers, spaces } from "@/db/schema";
+import { memberships, organizations, projects, spaceMembers, spaces, subscriptions } from "@/db/schema";
+import { phaseOf } from "@/lib/billing/plans";
 import { can, canSeeSpace, type Action } from "@/lib/permissions";
 import { getSessionUser } from "./session";
 
@@ -22,13 +23,16 @@ const resolveOrg = cache(async (orgSlug: string) => {
   if (!row) return { ok: false, reason: "not-found" } as const;
   const requestTime = Date.now();
   const trialDaysLeft = row.org.trialEndsAt ? Math.max(0, Math.ceil((row.org.trialEndsAt.getTime() - requestTime) / 864e5)) : null;
+  // OB-10: trial, on a plan, or expired (read-only until a plan is chosen).
+  const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.orgId, row.org.id));
+  const billing = phaseOf(sub ?? null, row.org.trialEndsAt, new Date(requestTime));
   // "Last active" for Settings › Members, written at most every 5 minutes.
   if (!row.lastActiveAt || requestTime - row.lastActiveAt.getTime() > 5 * 60 * 1000) {
     await withOrg(row.org.id, (tx) =>
       tx.update(memberships).set({ lastActiveAt: new Date(requestTime) }).where(and(eq(memberships.orgId, row.org.id), eq(memberships.userId, user.id))),
     );
   }
-  return { ok: true, value: { user, org: row.org, role: row.role, trialDaysLeft, requestTime } } as const;
+  return { ok: true, value: { user, org: row.org, role: row.role, trialDaysLeft, requestTime, billing } } as const;
 });
 
 function unwrap<T>(r: Resolved<T>): T {
@@ -77,6 +81,14 @@ export const listVisibleSpaces = cache(async (orgSlug: string) => {
 
 const READ_ONLY = new Set<Action>(["content.view", "analytics.view"]);
 
+/** OB-10: what people see when the trial or plan has ended. */
+export const LOCKED_MESSAGE = "The trial or plan has ended, so Growth OS is read-only. The Owner can choose a plan in Settings › Billing.";
+
+/** For organisation-level changes (invites, spaces): refuses while the organisation is read-only. */
+export function assertNotLocked(ctx: { billing: { locked: boolean } }) {
+  if (ctx.billing.locked) throw new Error(LOCKED_MESSAGE);
+}
+
 const resolveSpace = cache(async (orgSlug: string, spaceSlug: string) => {
   const org = await resolveOrg(orgSlug);
   if (!org.ok) return org;
@@ -101,7 +113,7 @@ const resolveSpace = cache(async (orgSlug: string, spaceSlug: string) => {
       project: null as Project | null,
       scope,
       // SP-05: archived spaces can be looked at, not changed.
-      can: (action: Action) => (result.space.archivedAt && !READ_ONLY.has(action) ? false : can(ctx.role, action, scope)),
+      can: (action: Action) => ((result.space.archivedAt || ctx.billing.locked) && !READ_ONLY.has(action) ? false : can(ctx.role, action, scope)),
     },
   } as const;
 });
@@ -133,6 +145,7 @@ export async function requireSpaceAction(orgSlug: string, spaceSlug: string, act
   const ctx = await getSpaceContext(orgSlug, spaceSlug);
   // SP-05: an archived space is read-only until it's restored (from Settings › Spaces).
   if (ctx.space.archivedAt && !READ_ONLY.has(action)) throw new Error(`${ctx.space.name} is archived, so it’s read-only. Restore it to make changes.`);
+  if (ctx.billing.locked && !READ_ONLY.has(action)) throw new Error(LOCKED_MESSAGE);
   if (!ctx.can(action)) throw new Error(`Your role (${ctx.role}) cannot ${action} in ${ctx.space.name}.`);
   return ctx;
 }

@@ -21,7 +21,7 @@ export async function seed(db: Db): Promise<void> {
   await db.transaction(async (tx) => {
     const [org] = await tx
       .insert(s.organizations)
-      .values({ slug: "knockknockclub", name: "KnockKnockClub", brandColor: "#17181C" })
+      .values({ slug: "knockknockclub", name: "KnockKnockClub", brandColor: "#17181C", country: "IN", trialEndsAt: new Date(Date.now() + 12 * 864e5) })
       .returning();
 
     const [prem, rahul, riya] = await tx

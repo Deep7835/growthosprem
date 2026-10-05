@@ -12,6 +12,7 @@ export function TopBar({
   role,
   devUsers,
   trialDaysLeft,
+  billing,
   bell,
 }: {
   orgSlug: string;
@@ -20,6 +21,8 @@ export function TopBar({
   /** Empty unless AUTH_MODE=dev; then the menu switches between seeded users. */
   devUsers: { email: string; name: string }[];
   trialDaysLeft: number | null;
+  /** UI2-01: the trial or plan badge, which opens Billing. */
+  billing?: { phase: string; planName: string };
   bell?: React.ReactNode;
 }) {
   // Clerk's menu (profile, sign out) when signed in through Clerk; the seeded-user switcher with AUTH_MODE=dev.
@@ -32,13 +35,23 @@ export function TopBar({
       <SearchPalette orgSlug={orgSlug} />
       <div className="flex-1" />
       {bell}
-      {trialDaysLeft != null && (role === "owner" || role === "admin") && (
-        <span
-          title="Plans and billing arrive with the billing milestone"
-          className="flex h-[30px] items-center rounded-full border border-line bg-accent-bg px-3 text-[13px] font-semibold text-accent-ink"
+      {(role === "owner" || role === "admin") && billing && (
+        <Link
+          href={`/o/${orgSlug}/settings/billing`}
+          className={`flex h-[30px] items-center rounded-full border px-3 text-[13px] font-semibold ${
+            billing.phase === "expired" || billing.phase === "past_due" ? "border-danger bg-danger-bg text-danger" : billing.phase === "trial" ? "border-line bg-accent-bg text-accent-ink" : "border-line bg-surface text-ink-2"
+          }`}
         >
-          {trialDaysLeft > 0 ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left in trial` : "Trial ended"}
-        </span>
+          {billing.phase === "trial"
+            ? trialDaysLeft != null
+              ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left in trial`
+              : "Free trial"
+            : billing.phase === "expired"
+              ? "Choose a plan"
+              : billing.phase === "past_due"
+                ? "Payment due"
+                : `${billing.planName} plan`}
+        </Link>
       )}
       {devUsers.length === 0 ? (
         <div className="flex items-center gap-2.5">

@@ -1,17 +1,18 @@
 "use server";
 
 import { createHash } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSystemDb, withOrg } from "@/db";
 import { createInvites, renewInvite, revokeInvite } from "@/db/invites";
 import { removeMember, updateMemberAccess } from "@/db/members";
-import { invites, spaceMembers, spaces } from "@/db/schema";
+import { invites, memberships, spaceMembers, spaces, users } from "@/db/schema";
 import { inviteEmail } from "@/emails/invite";
 import { canInvite, canManageMembers, type InviteRole } from "@/lib/permissions";
 import { sendEmail } from "@/server/email";
-import { getOrgContext } from "@/server/tenancy";
+import { checkSeats } from "@/server/billing";
+import { getOrgContext, LOCKED_MESSAGE } from "@/server/tenancy";
 import { appUrl } from "@/server/url";
 
 const MAX_EMAILS = 20;
@@ -63,6 +64,22 @@ export async function inviteMembers(org: string, _prev: InviteState, formData: F
           ? "Choose at least one space for Managers and Editors."
           : "Your role can’t send this invite. Managers can invite Managers and Editors to their own spaces.",
     };
+  }
+
+  if (ctx.billing.locked) return { error: LOCKED_MESSAGE };
+  // TM-04: new people need free seats; re-sending to someone already invited doesn't.
+  const known = await withOrg(ctx.org.id, async (tx) => {
+    const [pending, members] = await Promise.all([
+      tx.select({ email: invites.email }).from(invites).where(and(isNull(invites.acceptedAt), isNull(invites.revokedAt))),
+      tx.select({ email: users.email }).from(memberships).innerJoin(users, eq(users.id, memberships.userId)),
+    ]);
+    return new Set([...pending, ...members].map((r) => r.email.toLowerCase()));
+  });
+  const adding = new Set(emails.map((e) => e.toLowerCase()).filter((e) => !known.has(e))).size;
+  try {
+    if (adding > 0) await checkSeats(ctx, adding);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Not enough seats." };
   }
 
   const db = await getSystemDb();

@@ -15,8 +15,6 @@ export const ACCEPTED: Record<string, { type: MediaType; maxBytes: number }> = {
 
 export const ACCEPT_ATTRIBUTE = Object.keys(ACCEPTED).join(",");
 
-/** Plan storage limit until billing sets one per plan (MD-05). */
-export const STORAGE_LIMIT_BYTES = 5 * 1024 ** 3;
 
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;

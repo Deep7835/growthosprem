@@ -130,9 +130,14 @@ export function Sidebar({
         ))}
       <div className="mt-auto flex flex-col gap-0.5 pt-6">
         {canManageSpaces && (
-          <NavLink href={`${base}/settings/spaces`} active={pathname.startsWith(`${base}/settings/spaces`)}>
-            Spaces
-          </NavLink>
+          <>
+            <NavLink href={`${base}/settings/spaces`} active={pathname.startsWith(`${base}/settings/spaces`)}>
+              Spaces
+            </NavLink>
+            <NavLink href={`${base}/settings/billing`} active={pathname.startsWith(`${base}/settings/billing`)}>
+              Billing
+            </NavLink>
+          </>
         )}
         <NavLink href={`${base}/settings/members`} active={pathname.startsWith(`${base}/settings/members`)}>
           {canInvite ? "Invite members" : "Members"}

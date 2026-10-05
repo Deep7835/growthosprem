@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createSpace, deleteSpace, restoreDeletedSpace, setSpaceArchived } from "@/server/spaces";
-import { getOrgContext } from "@/server/tenancy";
+import { assertNotLocked, getOrgContext } from "@/server/tenancy";
 
 // Creating, archiving and deleting spaces: the Owner and Admins (PRD 4). Restoring a deleted space: the Owner.
 
@@ -31,6 +31,7 @@ const newSpace = z.object({
 
 export async function addSpace(org: string, input: unknown): Promise<SpaceResult<{ href: string }>> {
   return run(org, async (ctx) => {
+    assertNotLocked(ctx);
     const space = await createSpace(ctx, newSpace.parse(input));
     return { href: `/o/${org}/s/${space.slug}/board` };
   });

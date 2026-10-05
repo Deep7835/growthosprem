@@ -133,6 +133,26 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Billing (Settings › Billing, PRD 6.20, OB-10, UI2-01, TM-04, MD-05), sample mode
+
+- Priced per active space with seats included (the PRD's working assumption). Plans, prices, seats, AI credits and storage
+  per space live in `src/lib/billing/plans.ts`. **The prices there are drafts** (Starter ₹999, Growth ₹2,499, Agency
+  ₹4,999 per space a month; $15, $35, $69 outside India; extra seats ₹299 or $5; yearly is 10 months).
+- 14-day trial with Growth's limits; the top-bar badge counts down and opens Billing (it shows the plan once chosen).
+  When the trial or a plan ends, Growth OS turns read-only for everyone (viewing works; creating, editing, publishing
+  actions, uploads and invites are refused) with a banner, until the Owner chooses a plan.
+- Billing page (Owner; Admins can look): status, seats and storage meters, plan picker with monthly or yearly, a checkout
+  that shows the invoice before paying, extra seats, the next invoice, billing details (legal name, GSTIN, email,
+  address, state) and invoices. Plan changes apply limits at once and the price from the next renewal; cancel keeps the
+  plan until the period ends.
+- GST invoices in India: CGST and SGST when the buyer is in the seller's state, IGST otherwise (state from the GSTIN or
+  the chosen state; IGST when unknown). Numbered `GOS-YYYY-0001`, printable to PDF.
+- Seats (TM-04): members plus pending invites; invites over the limit are refused with an upgrade prompt. Storage
+  (MD-05) and the monthly AI budget follow the plan and the number of active spaces.
+- Sample mode: no payment is taken and no card or UPI details are collected; the worker renews sample plans at the end
+  of each period. Not yet: Razorpay and Stripe checkout, webhooks and real payment methods (they need your accounts and
+  test keys), proration, seller GSTIN and SAC code (set them with your accountant).
+
 ### Spaces (Settings › Spaces, space settings › Space and Members, PRD 6.3, SP-01 to SP-06)
 
 - "Create your new social space" (Owner and Admins, from the sidebar "+" or Settings › Spaces): avatar initial and
@@ -407,7 +427,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).
+1. Connect Razorpay (India) and Stripe (elsewhere) to billing: checkout, webhooks, payment methods.
 2. AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Space logos and custom planning-only platforms (SP-01, SP-03).
