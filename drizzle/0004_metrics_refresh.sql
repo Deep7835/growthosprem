@@ -1,0 +1,1 @@
+ALTER TABLE "spaces" ADD COLUMN "metrics_refreshed_at" timestamp with time zone;

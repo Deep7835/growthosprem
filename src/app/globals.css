@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* Design tokens, matching the clickable prototype. Source-label colours
+   (data, ai, web) are reserved for AI claims and used nowhere else (PRD 11). */
+@theme {
+  --color-ground: #f4f4f0;
+  --color-surface: #ffffff;
+  --color-subtle: #fafaf7;
+  --color-line: #e4e3dc;
+  --color-line-soft: #efeee8;
+  --color-ink: #17181c;
+  --color-ink-2: #3e4148;
+  --color-muted: #5b5e66;
+  --color-faint: #6e7178;
+  --color-accent: #f2a93b;
+  --color-accent-ink: #7a4a00;
+  --color-accent-bg: #fff6e6;
+  --color-success: #1e7b4c;
+  --color-success-bg: #e5f4ec;
+  --color-success-ink: #14532d;
+  --color-warn-bg: #fdeedc;
+  --color-warn-ink: #6b3300;
+  --color-danger: #b42318;
+  --color-danger-bg: #fdecea;
+  --color-data: #1d4ed8;
+  --color-data-bg: #e7eefd;
+  --color-ai: #7a3eb8;
+  --color-ai-bg: #f2eafb;
+  --color-web: #0f766e;
+  --color-web-bg: #e2f4f1;
+  --color-focus: #2b59c3;
+}
+
+@theme inline {
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-dm-sans), sans-serif;
+}
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
