@@ -28,12 +28,15 @@ export function Sidebar({
   orgName,
   spaces,
   canInvite,
+  unread = 0,
 }: {
   orgSlug: string;
   orgName: string;
   spaces: SidebarSpace[];
   /** Owners, Admins and Managers see "Invite members"; Editors see the read-only list as "Members". */
   canInvite: boolean;
+  /** UI-02: unread count beside Notifications. */
+  unread?: number;
 }) {
   const pathname = usePathname();
   const base = `/o/${orgSlug}`;
@@ -46,6 +49,14 @@ export function Sidebar({
       </div>
       <NavLink href={`${base}/overview`} active={pathname.startsWith(`${base}/overview`)}>
         Overview
+      </NavLink>
+      <NavLink href={`${base}/notifications`} active={pathname.startsWith(`${base}/notifications`)}>
+        <span className="flex-1">Notifications</span>
+        {unread > 0 && (
+          <span aria-label={`${unread} unread`} className="rounded-full bg-danger px-1.5 text-[11px] font-bold text-white">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
       </NavLink>
       <NavLink href={`${base}/ai`} active={pathname.startsWith(`${base}/ai`)}>
         AI Copilot

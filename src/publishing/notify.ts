@@ -2,7 +2,8 @@
 // or whoever created it. In-app notifications plus a follow-up email for failures.
 import { and, eq, inArray } from "drizzle-orm";
 import type { Tx } from "@/db/core";
-import { contentAssignees, memberships, notifications, spaceMembers, users } from "@/db/schema";
+import { contentAssignees, memberships, spaceMembers, users } from "@/db/schema";
+import { deliver } from "@/notifications/deliver";
 import type { Bundle } from "./bundle";
 
 export async function audience(tx: Tx, b: Bundle, opts: { managers: boolean }): Promise<string[]> {
@@ -25,11 +26,8 @@ export async function audience(tx: Tx, b: Bundle, opts: { managers: boolean }): 
   return [...ids];
 }
 
-export async function notify(tx: Tx, b: Bundle, userIds: string[], n: { kind: string; title: string; body?: string }) {
-  if (userIds.length === 0) return;
-  await tx.insert(notifications).values(
-    userIds.map((userId) => ({ orgId: b.item.orgId, spaceId: b.space.id, userId, kind: n.kind, title: n.title, body: n.body ?? "", href: b.itemHref })),
-  );
+export async function notify(tx: Tx, b: Bundle, userIds: string[], n: { kind: string; title: string; body?: string; noEmail?: boolean }) {
+  await deliver(tx, userIds, { orgId: b.item.orgId, spaceId: b.space.id, kind: n.kind, title: n.title, body: n.body, href: b.itemHref, noEmail: n.noEmail });
 }
 
 export async function emailsFor(tx: Tx, userIds: string[]) {

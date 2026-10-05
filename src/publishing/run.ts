@@ -7,7 +7,7 @@ import { needsReconnect } from "@/jobs/meta-sync";
 import { enqueue, PRIORITY } from "@/jobs/queue";
 import type { Format } from "@/lib/analytics/audit";
 import { openToken } from "@/lib/crypto";
-import { sendEmail } from "@/lib/email";
+import { escapeHtml as escape, sendEmail } from "@/lib/email";
 import { GraphError, type Graph } from "@/lib/meta/graph";
 import { titleFromCaption } from "@/lib/meta/health";
 import { PLACEMENTS, type PlacementKind } from "@/lib/placements";
@@ -15,6 +15,7 @@ import { checkReadiness, fullCaption, issuesFor, itemPublishState } from "@/lib/
 import { loadBundle, readinessInput, type Bundle } from "./bundle";
 import { publicBase, publicMediaUrl, mediaReachable } from "./media-url";
 import { audience, emailsFor, notify } from "./notify";
+import { channelsForPeople } from "@/notifications/deliver";
 
 export const PUBLISH_JOB = { publish: "publish.placement", reminder: "publish.reminder", followup: "publish.failure_email" } as const;
 
@@ -70,6 +71,8 @@ async function markFailed(deps: PublishDeps, b: Bundle, p: Placement, reason: st
       kind: "publish_failed",
       title: `${name} failed: ${b.item.title}`,
       body: reason,
+      // PB-10 emails after 30 minutes if it's still failed, not straight away.
+      noEmail: true,
     });
   });
   // PB-10: an email if it's still unresolved after 30 minutes.
@@ -217,7 +220,9 @@ export async function failureFollowup(deps: Pick<PublishDeps, "db">, payload: { 
   const recipients = await withOrg(deps.db, ref.orgId, async (tx) => {
     const b = await loadBundle(tx, ref.contentItemId);
     if (!b) return null;
-    return { b, people: await emailsFor(tx, await audience(tx, b, { managers: true })) };
+    const ids = await audience(tx, b, { managers: true });
+    const channels = await channelsForPeople(tx, ids, b.space.id, "action_required");
+    return { b, people: await emailsFor(tx, ids.filter((id) => channels.get(id)?.email)) };
   });
   if (!recipients) return;
   const { b, people } = recipients;
@@ -234,6 +239,4 @@ export async function failureFollowup(deps: Pick<PublishDeps, "db">, payload: { 
   }
 }
 
-function escape(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
+

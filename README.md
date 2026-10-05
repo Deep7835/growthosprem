@@ -133,6 +133,39 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Notifications (`/o/[org]/notifications`, PRD 6.18, NT-01 to NT-04, TK-03, UI-02)
+
+- Notifications page (NT-01): Primary and Cleared tabs, search, filters by type and by space, unread only, mark as read
+  or unread, clear (with Undo) and clear all, restore from Cleared, grouped by day. "You're all caught up" when empty.
+  With filters on, the bulk buttons act on what's shown. The sidebar shows Notifications with the unread count; the
+  bell keeps the latest 12 and links to the page.
+- Types (NT-02): Action required (a post failed, time to post by hand, an account needs reconnecting), Comments and
+  mentions (team comments on your posts, `@Name` in a comment, note mentions), Content updates (assigned to a post, its
+  status changed), Task updates (due in the next day, overdue; TK-03), Client review (approved, changes asked), Publishing,
+  Social account (access about to expire), AI Copilot (80% and 100% of the monthly budget), System.
+- Preferences (NT-03, `/o/[org]/notifications/settings`): in-app and email per type, as defaults and per space, with
+  "Use default" and "Apply to other spaces". Action required always shows in-app. Failed posts email only if still
+  failed 30 minutes later (PB-10).
+- Email: the worker sends queued emails every minute through Resend; without `RESEND_API_KEY` they are marked skipped.
+  Optional daily digest (NT-04) at 9 AM in the person's time zone, only on days with something unread.
+- Not yet: browser push (NT-03), WhatsApp and Slack (NT-05, V2), workflow notifications (V2).
+
+### Search palette (top bar or Ctrl/⌘ K, PRD SR-01 to SR-03)
+
+- Searches content titles, captions and hashtags, tasks, projects, spaces, notes and Idea Bank ideas across every space
+  you can see, grouped by type, with the match highlighted, a snippet when it matched in the text, the space, platform
+  icons and how long ago. An empty search lists recent posts and your spaces.
+- Arrow keys move, Enter opens (posts open in their panel, projects open the Table filtered to them, notes and ideas
+  open on their own), Esc closes. Results come back in about 30–60 ms on the sample data.
+- Not yet: search inside media by AI description (SR-04, V2); a trigram index for large workspaces.
+
+### Per-platform captions (content panel, PRD CT-06)
+
+- One shared caption by default, with a counter per chosen platform. "Customise per platform" splits it into a tab per
+  platform, each with its own counter and limit; AI caption help works on the tab you're on. "Use one caption" goes
+  back, keeping the caption you choose. Platforms added later start from their platform's caption.
+- Previews, the client review page, publishing and "Copy caption" (one per platform) use each platform's caption.
+
 ### Strategy (`/o/[org]/s/[space]/strategy`, PRD 6.16, SG-01 to SG-04)
 
 - Wizard (SG-01): business, industry, audience, location, offer, objective, platforms, posts a week, competitors and
@@ -317,7 +350,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Per-platform captions (CT-06), the search palette (SR-01, SR-02) and the notifications page (6.18).
-2. Notifications page and preferences (6.18), AI tagging of imported posts, cloud storage driver (R2 or S3).
+1. Tasks: create, assign and check off tasks in the panel, task templates per format (TK-01, TK-04), browser push.
+2. AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

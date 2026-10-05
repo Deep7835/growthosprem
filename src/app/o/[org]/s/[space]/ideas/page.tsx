@@ -6,12 +6,16 @@ import { acceptPillars, addIdea, editIdea, removeIdeas, suggestPillars, toConten
 export const metadata = { title: "Idea Bank" };
 
 /** VW-07: ideas before they become posts. */
-export default async function IdeasPage({ params }: PageProps<"/o/[org]/s/[space]/ideas">) {
+export default async function IdeasPage({ params, searchParams }: PageProps<"/o/[org]/s/[space]/ideas">) {
   const { org, space } = await params;
+  const { idea } = await searchParams;
+  const openId = typeof idea === "string" ? idea : null;
   const ctx = await getSpaceContext(org, space);
   const data = await listIdeas(ctx);
   return (
     <IdeaBank
+      key={openId ?? "all"}
+      openId={openId}
       org={org}
       space={space}
       data={data}

@@ -8,6 +8,8 @@ import { z } from "zod";
 import { withOrg } from "@/db";
 import { approvals, comments, contentItems, shareLinkItems, statuses } from "@/db/schema";
 import { logActivity } from "@/server/activity";
+import { deliver, spaceManagers } from "@/notifications/deliver";
+import { postFollowers, postHref } from "@/notifications/content";
 import { currentVersionHash, resolveShareLink } from "@/server/review";
 import { REVIEWER_COOKIE, readReviewer, reviewerSchema } from "@/server/reviewer";
 
@@ -80,6 +82,16 @@ export async function decide(token: string, contentId: string, decision: "approv
       action: decision === "approved" ? "approved" : "requested changes",
       field: target ? "status" : undefined,
       after: target?.name,
+    });
+    // The post's people and the space's Managers; Owners and Admins only if nobody else would hear.
+    const people = [...(await postFollowers(tx, item.id)), ...(await spaceManagers(tx, spaceId, { admins: false }))];
+    await deliver(tx, people.length ? people : await spaceManagers(tx, spaceId), {
+      orgId,
+      spaceId,
+      kind: decision === "approved" ? "review_approved" : "review_changes",
+      title: decision === "approved" ? `${reviewer.name} approved “${item.title}”` : `${reviewer.name} asked for changes to “${item.title}”`,
+      body: note,
+      href: await postHref(tx, item),
     });
   });
   revalidatePath(`/review/${token}`);

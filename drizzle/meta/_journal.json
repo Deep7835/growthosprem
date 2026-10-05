@@ -169,6 +169,20 @@
       "when": 1791215790096,
       "tag": "0023_rls_strategy",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791220790945,
+      "tag": "0024_notification_center",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791220798344,
+      "tag": "0025_rls_notification_settings",
+      "breakpoints": true
     }
   ]
 }

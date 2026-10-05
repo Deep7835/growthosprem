@@ -2,6 +2,7 @@ import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { switchDevUser } from "@/app/actions/dev";
 import { Avatar } from "@/components/ui";
+import { SearchPalette } from "./SearchPalette";
 
 const ROLE_LABEL = { owner: "Owner", admin: "Admin", manager: "Manager", editor: "Editor" } as const;
 
@@ -28,19 +29,7 @@ export function TopBar({
         <span className="grid size-[26px] place-items-center rounded-[7px] bg-accent text-sm">G</span>
         Growth OS
       </Link>
-      <label className="flex h-[34px] w-full max-w-[360px] items-center gap-2 rounded-lg border border-line bg-subtle px-2.5 text-sm text-muted">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-          <circle cx="11" cy="11" r="7" />
-          <path d="M21 21l-4.3-4.3" />
-        </svg>
-        <input
-          type="search"
-          placeholder="Search organisation…"
-          aria-label="Search organisation"
-          className="min-w-0 flex-1 bg-transparent text-ink outline-none"
-        />
-        <kbd className="rounded border border-line px-1.5 text-[11px]">Ctrl K</kbd>
-      </label>
+      <SearchPalette orgSlug={orgSlug} />
       <div className="flex-1" />
       {bell}
       {trialDaysLeft != null && (role === "owner" || role === "admin") && (

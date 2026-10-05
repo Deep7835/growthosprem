@@ -7,6 +7,7 @@ import { JOB, checkTokenHealth, scheduleRecurring, syncAccount, syncGaveUp } fro
 import { claim, complete, fail, type Job } from "./queue";
 import { reconcileScheduled } from "@/publishing/reconcile";
 import { PUBLISH_JOB, failureFollowup, publishPlacement, sendReminder } from "@/publishing/run";
+import { NOTIFY_JOB, notificationChores, sendDigest } from "@/notifications/worker";
 
 export interface WorkerDeps {
   getDb: () => Promise<Db>;
@@ -22,6 +23,8 @@ export async function runJob(job: Job, db: Db, graph: Graph | null): Promise<voi
       return sendReminder({ db }, payload as { contentItemId: string; orgId: string; scheduledAt: string });
     case PUBLISH_JOB.followup:
       return failureFollowup({ db }, payload as { placementId: string; failedAt: string });
+    case NOTIFY_JOB.digest:
+      return sendDigest(db, payload as { orgId: string; userId: string; date: string });
   }
   if (!graph) throw new Error("Instagram and Facebook are not set up (META_APP_ID).");
   if (job.kind === PUBLISH_JOB.publish) {
@@ -86,6 +89,7 @@ export function startWorker(deps: WorkerDeps, opts: { pollMs?: number; scheduleM
           lastSchedule = Date.now();
           if (deps.getGraph()) await scheduleRecurring(db);
           await reconcileScheduled(db);
+          await notificationChores(db);
         }
         const ran = await drain(deps, id, 20);
         if (ran > 0) continue;

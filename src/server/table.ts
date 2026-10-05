@@ -7,6 +7,8 @@ import { isoDate, zonedParts } from "@/lib/analytics/time";
 import { formatSchedule } from "@/lib/format";
 import type { PlacementKind } from "@/lib/placements";
 import { cleanTags } from "@/lib/table";
+import { postHref } from "@/notifications/content";
+import { deliver } from "@/notifications/deliver";
 import { logActivity } from "./activity";
 import type { SpaceContext } from "./tenancy";
 
@@ -112,6 +114,14 @@ export async function setAssignees(ctx: SpaceContext, id: string, userIds: strin
     const names = await tx.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, [...new Set([...current, ...next])]));
     const label = (list: string[]) => list.map((u) => names.find((n) => n.id === u)?.name ?? "someone").join(", ") || "nobody";
     await logActivity(tx, { orgId: ctx.org.id, spaceId: ctx.space.id, contentItemId: item.id, actor: actor(ctx), action: "updated", field: "assignees", before: label(current), after: label(next) });
+    await deliver(tx, next.filter((u) => !current.includes(u) && u !== ctx.user.id), {
+      orgId: ctx.org.id,
+      spaceId: ctx.space.id,
+      kind: "assigned",
+      title: `${ctx.user.name} assigned you to “${item.title}”`,
+      body: ctx.space.name,
+      href: await postHref(tx, item),
+    });
   });
 }
 

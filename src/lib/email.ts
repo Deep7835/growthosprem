@@ -26,3 +26,7 @@ export async function sendEmail(message: { to: string; subject: string; html: st
     return { sent: false, reason: "The email service could not be reached." };
   }
 }
+
+export function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}

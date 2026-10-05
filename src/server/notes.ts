@@ -1,7 +1,8 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { withOrg } from "@/db";
-import { contentItems, notes, notifications, projects, users } from "@/db/schema";
+import { contentItems, notes, projects, users } from "@/db/schema";
+import { deliver } from "@/notifications/deliver";
 import { NOTE_TEMPLATES, type NoteTemplate } from "@/lib/note-templates";
 import { excerpt, sanitizeDoc, summarize } from "@/lib/notes";
 import { assignableMembers } from "./table";
@@ -99,17 +100,14 @@ export async function saveNote(ctx: SpaceContext, id: string, input: { title?: s
     await tx.update(notes).set(patch).where(eq(notes.id, id));
     if (fresh.length) {
       const title = (patch.title ?? note.title) || "a note";
-      await tx.insert(notifications).values(
-        fresh.map((userId) => ({
-          orgId: ctx.org.id,
-          spaceId: ctx.space.id,
-          userId,
-          kind: "mention",
-          title: `${ctx.user.name} mentioned you in “${title}”`,
-          body: ctx.space.name,
-          href: noteHref,
-        })),
-      );
+      await deliver(tx, fresh, {
+        orgId: ctx.org.id,
+        spaceId: ctx.space.id,
+        kind: "mention",
+        title: `${ctx.user.name} mentioned you in “${title}”`,
+        body: ctx.space.name,
+        href: noteHref,
+      });
     }
     return { savedAt: patch.updatedAt!.toISOString(), notified: fresh.length };
   });

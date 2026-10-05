@@ -6,8 +6,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { withOrg } from "@/db";
-import { aiActions, aiMessages, brandBrains, contentItems, usageEvents } from "@/db/schema";
+import { withOrg, type Tx } from "@/db";
+import { aiActions, aiMessages, brandBrains, contentItems, organizations, usageEvents } from "@/db/schema";
+import { deliver, spaceManagers } from "@/notifications/deliver";
 import { COPILOT_MODEL, WRITING_MODEL, creditsFor, type TokenUsage } from "@/lib/ai/config";
 import { StrategyDoc, type History, type StrategyInputs } from "@/lib/strategy";
 
@@ -67,8 +68,8 @@ export async function usageThisMonth(orgId: string) {
 
 export async function recordUsage(entry: { orgId: string; userId: string; spaceId: string | null; kind: string; model: string; usage: TokenUsage }) {
   const credits = creditsFor(entry.model, entry.usage);
-  await withOrg(entry.orgId, (tx) =>
-    tx.insert(usageEvents).values({
+  await withOrg(entry.orgId, async (tx) => {
+    await tx.insert(usageEvents).values({
       orgId: entry.orgId,
       userId: entry.userId,
       spaceId: entry.spaceId,
@@ -79,9 +80,32 @@ export async function recordUsage(entry: { orgId: string; userId: string; spaceI
       cacheReadTokens: entry.usage.cache_read_input_tokens ?? 0,
       cacheWriteTokens: entry.usage.cache_creation_input_tokens ?? 0,
       credits,
-    }),
-  );
+    });
+    await budgetAlert(tx, entry.orgId);
+  });
   return credits;
+}
+
+/** NT-02 AI Copilot: tells Owners and Admins once a month at 80% and at 100% of the budget. */
+async function budgetAlert(tx: Tx, orgId: string) {
+  const [org] = await tx.select({ slug: organizations.slug, budget: organizations.aiMonthlyCredits }).from(organizations).where(eq(organizations.id, orgId));
+  if (!org || org.budget <= 0) return;
+  const [{ used }] = await tx
+    .select({ used: sql<number>`coalesce(sum(${usageEvents.credits}), 0)::int` })
+    .from(usageEvents)
+    .where(gte(usageEvents.createdAt, monthStart()));
+  const level = used >= org.budget ? 100 : used >= org.budget * 0.8 ? 80 : 0;
+  if (!level) return;
+  const month = monthStart().toISOString().slice(0, 7);
+  await deliver(tx, await spaceManagers(tx, null), {
+    orgId,
+    spaceId: null,
+    kind: "ai_budget",
+    title: level === 100 ? "This month’s AI budget is used up" : "80% of this month’s AI budget is used",
+    body: `${used.toLocaleString("en-IN")} of ${org.budget.toLocaleString("en-IN")} credits. ${level === 100 ? "AI features pause until next month unless you raise the budget." : "Raise the budget in AI settings if you need more."}`,
+    href: `/o/${org.slug}/ai/settings`,
+    key: `ai_budget:${orgId}:${month}:${level}`,
+  });
 }
 
 /* ---------- The Copilot's instructions ---------- */

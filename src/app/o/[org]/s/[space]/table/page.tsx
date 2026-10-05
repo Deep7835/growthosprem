@@ -27,7 +27,7 @@ export default async function TablePage({ params, searchParams }: PageProps<"/o/
         nowLocal={`${isoDate(now)}T${String(now.hour).padStart(2, "0")}:${String(now.minute).padStart(2, "0")}`}
         timeZoneLabel={ctx.space.timezone === "Asia/Kolkata" ? "IST" : ctx.space.timezone}
         canEdit={ctx.can("content.edit")}
-        saved={ctx.user.preferences.tables?.[ctx.space.id] ?? {}}
+        saved={withProject(ctx.user.preferences.tables?.[ctx.space.id] ?? {}, typeof query.project === "string" ? query.project : null)}
         edit={editCell.bind(null, org, space)}
         bulk={bulkAction.bind(null, org, space)}
         saveView={saveTableView.bind(null, org, space)}
@@ -35,4 +35,10 @@ export default async function TablePage({ params, searchParams }: PageProps<"/o/
       <PanelHost ctx={ctx} org={org} space={space} contentId={typeof query.content === "string" ? query.content : null} closeHref={base} />
     </>
   );
+}
+
+/** ?project= (from search) shows that project's posts on top of the saved view. */
+function withProject<T extends { filters?: Record<string, unknown> }>(saved: T, project: string | null): T {
+  if (!project || !/^[0-9a-f-]{36}$/.test(project)) return saved;
+  return { ...saved, filters: { ...saved.filters, project } };
 }

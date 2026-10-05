@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRef, useTransition } from "react";
+import { TypeIcon } from "@/components/notifications/TypeIcon";
+import type { NotificationType } from "@/lib/notifications";
 
 export interface BellItem {
   id: string;
-  kind: string;
+  type: NotificationType;
   title: string;
   body: string;
   href: string | null;
@@ -13,12 +15,13 @@ export interface BellItem {
   when: string;
 }
 
-const ICON: Record<string, string> = { publish_failed: "!", publish_reminder: "⏰", published: "✓", mention: "@" };
-
-/** The parts of notifications (PRD 6.18) publishing needs: failures, reminders, published. */
-export function NotificationBell({ items, unread, markRead }: { items: BellItem[]; unread: number; markRead: (id?: string) => Promise<void> }) {
+/** The latest notifications (PRD 6.18) from the top bar; the full list is on the Notifications page. */
+export function NotificationBell({ items, unread, markRead, allHref }: { items: BellItem[]; unread: number; markRead: (id?: string) => Promise<void>; allHref: string }) {
   const details = useRef<HTMLDetailsElement>(null);
   const [, start] = useTransition();
+  const close = () => {
+    if (details.current) details.current.open = false;
+  };
   return (
     <details ref={details} className="relative">
       <summary
@@ -53,17 +56,12 @@ export function NotificationBell({ items, unread, markRead }: { items: BellItem[
                 <Link
                   href={n.href ?? "#"}
                   onClick={() => {
-                    if (details.current) details.current.open = false;
+                    close();
                     if (!n.read) start(() => markRead(n.id));
                   }}
                   className="flex gap-3 px-4 py-3 hover:bg-subtle"
                 >
-                  <span
-                    aria-hidden
-                    className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ${n.kind === "publish_failed" ? "bg-danger-bg text-danger" : n.kind === "published" ? "bg-success-bg text-success-ink" : "bg-data-bg text-data"}`}
-                  >
-                    {ICON[n.kind] ?? "•"}
-                  </span>
+                  <TypeIcon type={n.type} size={26} />
                   <span className="min-w-0 flex-1">
                     <span className={`block text-sm ${n.read ? "" : "font-semibold"}`}>{n.title}</span>
                     {n.body && <span className="line-clamp-2 block text-[13px] text-muted">{n.body}</span>}
@@ -74,6 +72,9 @@ export function NotificationBell({ items, unread, markRead }: { items: BellItem[
             ))}
           </ul>
         )}
+        <Link href={allHref} onClick={close} className="block border-t border-line-soft px-4 py-2.5 text-center text-sm font-semibold hover:bg-subtle">
+          See all notifications
+        </Link>
       </div>
     </details>
   );

@@ -2,12 +2,14 @@
 // 1 h / 24 h / 3 / 7 / 30 days, the daily follower snapshot and the daily token check.
 import { and, eq, inArray, isNotNull, like, max } from "drizzle-orm";
 import { withOrg, type Db, type Tx } from "@/db/core";
-import { accountMetricsDaily, activityLog, postMetrics, posts, socialAccounts, spaces } from "@/db/schema";
+import { accountMetricsDaily, activityLog, organizations, postMetrics, posts, socialAccounts, spaces } from "@/db/schema";
 import { isoDate, zonedParts } from "@/lib/analytics/time";
 import { openToken } from "@/lib/crypto";
 import { snapshotDue } from "@/lib/meta/checkpoints";
 import { GraphError, type Graph } from "@/lib/meta/graph";
 import { titleFromCaption, tokenStatus } from "@/lib/meta/health";
+import { PLATFORM_NAMES } from "@/lib/placements";
+import { deliver, spaceManagers } from "@/notifications/deliver";
 import { enqueue, PermanentError, PRIORITY, prune } from "./queue";
 
 export const JOB = { import: "meta.import", sync: "meta.sync", health: "meta.token_health" } as const;
@@ -51,6 +53,26 @@ async function logAccount(tx: Tx, account: Account, action: string, after?: unkn
   });
 }
 
+/** Tells the space's Managers, Owners and Admins about an account problem (NT-02: social account). */
+async function notifyAccount(tx: Tx, account: Account, n: { kind: "account_reconnect" | "account_expiring"; title: string; body: string; key: string }) {
+  const [where] = await tx
+    .select({ org: organizations.slug, space: spaces.slug, spaceName: spaces.name })
+    .from(spaces)
+    .innerJoin(organizations, eq(organizations.id, spaces.orgId))
+    .where(eq(spaces.id, account.spaceId));
+  await deliver(tx, await spaceManagers(tx, account.spaceId), {
+    orgId: account.orgId,
+    spaceId: account.spaceId,
+    kind: n.kind,
+    title: n.title,
+    body: where ? `${where.spaceName} · ${n.body}` : n.body,
+    href: where ? `/o/${where.org}/s/${where.space}/settings/accounts` : null,
+    key: n.key,
+  });
+}
+
+const platformName = (a: Account) => PLATFORM_NAMES[a.platform];
+
 /** The account can no longer be read: only reconnecting fixes it. Retrying would not help. */
 export async function needsReconnect(db: Db, account: Account, reason: string) {
   await withOrg(db, account.orgId, async (tx) => {
@@ -58,7 +80,15 @@ export async function needsReconnect(db: Db, account: Account, reason: string) {
       .update(socialAccounts)
       .set({ status: "reconnect_needed", statusReason: reason, syncState: null, syncProgress: null })
       .where(eq(socialAccounts.id, account.id));
-    if (account.status !== "reconnect_needed") await logAccount(tx, account, "reconnect_needed", { reason });
+    if (account.status !== "reconnect_needed") {
+      await logAccount(tx, account, "reconnect_needed", { reason });
+      await notifyAccount(tx, account, {
+        kind: "account_reconnect",
+        title: `Reconnect ${platformName(account)} ${account.handle}`,
+        body: `${reason} Scheduled posts to it won’t go out until it’s reconnected.`,
+        key: `account_reconnect:${account.id}:${Date.now()}`,
+      });
+    }
   });
 }
 
@@ -213,7 +243,16 @@ export async function checkTokenHealth(deps: SyncDeps, accountId: string) {
   if (status === "reconnect_needed") return needsReconnect(deps.db, account, "Access to this account has expired.");
   await withOrg(deps.db, account.orgId, async (tx) => {
     await tx.update(socialAccounts).set({ status, tokenExpiresAt: info.expiresAt, statusReason: null }).where(eq(socialAccounts.id, account.id));
-    if (status === "expiring" && account.status !== "expiring") await logAccount(tx, account, "token_expiring", { expiresAt: info.expiresAt });
+    if (status === "expiring" && account.status !== "expiring") {
+      await logAccount(tx, account, "token_expiring", { expiresAt: info.expiresAt });
+      const days = info.expiresAt ? Math.max(1, Math.ceil((info.expiresAt.getTime() - now.getTime()) / 864e5)) : null;
+      await notifyAccount(tx, account, {
+        kind: "account_expiring",
+        title: `${platformName(account)} ${account.handle} needs reconnecting${days ? ` within ${days} day${days === 1 ? "" : "s"}` : " soon"}`,
+        body: "Reconnect it to keep posting and syncing.",
+        key: `account_expiring:${account.id}:${info.expiresAt?.getTime() ?? 0}`,
+      });
+    }
   });
 }
 

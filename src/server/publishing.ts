@@ -5,7 +5,7 @@ import { contentItems, placements, posts, socialAccounts } from "@/db/schema";
 import { enqueue, PRIORITY } from "@/jobs/queue";
 import { zonedToUtc } from "@/lib/analytics/time";
 import { getGraph } from "@/lib/meta";
-import { PLACEMENTS, type PlacementKind } from "@/lib/placements";
+import { PLACEMENTS, PLATFORM_NAMES, type PlacementKind } from "@/lib/placements";
 import { checkReadiness, fullCaption, type Issue } from "@/lib/publishing/rules";
 import { canPublish, loadBundle, readinessInput, type Bundle } from "@/publishing/bundle";
 import { mediaReachable } from "@/publishing/media-url";
@@ -44,6 +44,12 @@ export async function getPublishView(ctx: SpaceContext, contentItemId: string) {
       scheduledAt: b.item.scheduledAt?.toISOString() ?? null,
       publishState: b.item.publishState,
       caption: fullCaption(b.item.caption, b.item.hashtags),
+      // CT-06: one caption to copy per platform once they differ.
+      platformCaptions: [...new Map(
+        b.placements
+          .filter((p) => p.state !== "published")
+          .map((p) => [PLATFORM_NAMES[PLACEMENTS[p.kind as PlacementKind].platform], fullCaption(p.captionOverride ?? b.item.caption, b.item.hashtags)] as const),
+      )].map(([label, text]) => ({ label, text })),
       issues,
       placements: b.placements.map((p) => ({
         id: p.id,
@@ -254,6 +260,9 @@ export async function addPlacement(ctx: SpaceContext, contentItemId: string, kin
     const platform = PLACEMENTS[kind].platform;
     const accounts = await tx.select().from(socialAccounts).where(and(eq(socialAccounts.spaceId, ctx.space.id), eq(socialAccounts.platform, platform)));
     const account = accounts.find(canPublish) ?? accounts.find((a) => a.status !== "disconnected") ?? null;
+    // CT-06: with per-platform captions on, it starts from its platform's caption (or the shared one).
+    const customised = b.placements.some((p) => p.captionOverride !== null);
+    const sibling = b.placements.find((p) => PLACEMENTS[p.kind as PlacementKind].platform === platform && p.captionOverride !== null);
     // PB-05: platform defaults are applied when the placement is added.
     await tx.insert(placements).values({
       orgId: ctx.org.id,
@@ -261,6 +270,7 @@ export async function addPlacement(ctx: SpaceContext, contentItemId: string, kin
       kind,
       socialAccountId: account?.id ?? null,
       options: kind === "ig_reel" ? { shareToFeed: true } : {},
+      captionOverride: customised ? (sibling?.captionOverride ?? b.item.caption) : null,
     });
     await logActivity(tx, { orgId: ctx.org.id, spaceId: ctx.space.id, contentItemId: b.item.id, actor: actor(ctx), action: `added ${PLACEMENTS[kind].label}`, field: "placements" });
     await returnToReviewIfApproved(tx, b.item);

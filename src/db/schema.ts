@@ -649,7 +649,8 @@ export const jobs = pgTable(
   (t) => [index("jobs_due").on(t.doneAt, t.failedAt, t.priority, t.runAt)],
 );
 
-// In-app notifications (PRD 6.18, the parts publishing needs: PB-03 reminders, PB-10 failures).
+// Notifications (PRD 6.18). One row per person per event; `inApp` false means the person only
+// wanted it by email (NT-03). Cleared ones move to the Cleared tab (NT-01).
 export const notifications = pgTable(
   "notifications",
   {
@@ -657,15 +658,43 @@ export const notifications = pgTable(
     orgId: orgId(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     spaceId: uuid("space_id").references(() => spaces.id, { onDelete: "cascade" }),
-    // "publish_failed", "publish_reminder", "published", "account".
+    // Fine-grained event, e.g. "publish_failed" or "mention"; its type (NT-02) comes from src/lib/notifications.ts.
     kind: text("kind").notNull(),
     title: text("title").notNull(),
     body: text("body").notNull().default(""),
     href: text("href"),
+    inApp: boolean("in_app").notNull().default(true),
+    // "pending" until the worker emails it, then "sent" or "skipped"; null when email is off.
+    emailStatus: text("email_status"),
+    // Repeating events (a task due tomorrow, a token about to expire) notify once per key.
+    key: text("key"),
     readAt: timestamp("read_at", { withTimezone: true }),
+    clearedAt: timestamp("cleared_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [index("notifications_user").on(t.userId, t.createdAt)],
+  (t) => [
+    index("notifications_user").on(t.userId, t.createdAt),
+    uniqueIndex("notifications_user_key").on(t.userId, t.key),
+    index("notifications_email").on(t.emailStatus),
+  ],
+);
+
+// Notification preferences (NT-03, NT-04): one row for the person's defaults ("default") and
+// one per space they changed. Missing rows fall back to the defaults in src/lib/notifications.ts.
+export const notificationSettings = pgTable(
+  "notification_settings",
+  {
+    id: id(),
+    orgId: orgId(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    scope: text("scope").notNull(),
+    settings: jsonb("settings")
+      .$type<{ types?: Partial<Record<string, { inApp: boolean; email: boolean }>>; digest?: boolean; timeZone?: string }>()
+      .notNull()
+      .default({}),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("notification_settings_scope").on(t.orgId, t.userId, t.scope)],
 );
 
 // Notes (VW-06): rich-text briefs and meeting notes per space, optionally for a project.

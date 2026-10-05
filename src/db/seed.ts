@@ -169,13 +169,14 @@ export async function seed(db: Db): Promise<void> {
             ["Shoot", true],
             ["Edit", false],
             ["Thumbnail", false],
-          ].map(([title, done]) => ({
+          ].map(([title, done], n) => ({
             orgId: org.id,
             spaceId: cafe.id,
             contentItemId: row.id,
             title: title as string,
             done: done as boolean,
             assigneeId: riya.id,
+            dueAt: ist(`2026-10-${String(8 + n * 2).padStart(2, "0")}T18:00`),
           })),
         );
       }
@@ -186,6 +187,15 @@ export async function seed(db: Db): Promise<void> {
           authorUserId: rahul.id,
           visibility: "private",
           body: "@Prem cover photo is final, caption needs the offer dates.",
+        });
+        await tx.insert(s.notifications).values({
+          orgId: org.id,
+          userId: prem.id,
+          spaceId: cafe.id,
+          kind: "mention",
+          title: `Rahul mentioned you on “${it.title}”`,
+          body: "@Prem cover photo is final, caption needs the offer dates.",
+          href: `/o/${org.slug}/s/${cafe.slug}/board?content=${row.id}`,
         });
       }
     }

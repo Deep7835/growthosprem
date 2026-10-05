@@ -384,7 +384,7 @@ export function PublishingSection({
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const locked = view.publishState === "scheduled" || view.placements.some((p) => p.state === "publishing" || p.state === "scheduled");
   const present = new Set(view.placements.map((p) => p.kind));
   const options = (Object.keys(PLACEMENTS) as PlacementKind[]).filter((k) => !present.has(k));
@@ -461,17 +461,20 @@ export function PublishingSection({
       {pendingCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-2 text-[13px] text-muted">
           Posting it yourself?
-          <button
-            type="button"
-            onClick={async () => {
-              await navigator.clipboard.writeText(view.caption);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1500);
-            }}
-            className={buttonClass("secondary", "sm")}
-          >
-            {copied ? "Copied" : "Copy caption"}
-          </button>
+          {(new Set(view.platformCaptions.map((c) => c.text)).size > 1 ? view.platformCaptions : [{ label: "", text: view.caption }]).map((c) => (
+            <button
+              key={c.label}
+              type="button"
+              onClick={async () => {
+                await navigator.clipboard.writeText(c.text);
+                setCopied(c.label || "all");
+                setTimeout(() => setCopied(null), 1500);
+              }}
+              className={buttonClass("secondary", "sm")}
+            >
+              {copied === (c.label || "all") ? "Copied" : c.label ? `Copy ${c.label} caption` : "Copy caption"}
+            </button>
+          ))}
           {view.mediaIds.map((m, i) => (
             <a key={m.id} href={`/api/o/${org}/s/${space}/media/${m.id}?download=1`} className={buttonClass("secondary", "sm")} title={m.filename}>
               Download media{view.mediaIds.length > 1 ? ` ${i + 1}` : ""}

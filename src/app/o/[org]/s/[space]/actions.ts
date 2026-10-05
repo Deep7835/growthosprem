@@ -7,10 +7,16 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { withOrg } from "@/db";
 import { comments, contentItems, placements, shareLinkItems, shareLinks, statuses } from "@/db/schema";
+import { PLACEMENTS } from "@/lib/placements";
 import { logActivity } from "@/server/activity";
 import { returnToReviewIfApproved } from "@/server/approval";
 import { requireSpaceAction } from "@/server/tenancy";
+import { assignableMembers } from "@/server/table";
+import { mergeCaptions, setPlatformCaption, splitCaptions } from "@/server/captions";
+import { deliver } from "@/notifications/deliver";
+import { assigneesOf, mentionedIn, postFollowers, postHref } from "@/notifications/content";
 
+const platformSchema = z.enum(["instagram", "facebook", "linkedin"]);
 const uuid = z.uuid();
 const spacePath = (org: string, space: string) => `/o/${org}/s/${space}`;
 
@@ -39,6 +45,14 @@ export async function moveContent(org: string, space: string, contentId: string,
       field: "status",
       before: from?.name,
       after: target.name,
+    });
+    await deliver(tx, (await assigneesOf(tx, item.id)).filter((u) => u !== ctx.user.id), {
+      orgId: ctx.org.id,
+      spaceId: ctx.space.id,
+      kind: "status_changed",
+      title: `${item.title} moved to ${target.name}`,
+      body: `By ${ctx.user.name} in ${ctx.space.name}`,
+      href: await postHref(tx, item),
     });
   });
   revalidatePath(spacePath(org, space), "layout");
@@ -119,7 +133,7 @@ export async function addComment(org: string, space: string, contentId: string, 
   const body = z.string().trim().min(1).max(5000).parse(formData.get("body"));
   await withOrg(ctx.org.id, async (tx) => {
     const [item] = await tx
-      .select({ id: contentItems.id })
+      .select()
       .from(contentItems)
       .where(and(eq(contentItems.id, uuid.parse(contentId)), eq(contentItems.spaceId, ctx.space.id)));
     if (!item) throw new Error("Content not found in this space.");
@@ -130,6 +144,13 @@ export async function addComment(org: string, space: string, contentId: string, 
       visibility: "private",
       body,
     });
+    // @mentions first, then everyone else following the post.
+    const href = await postHref(tx, item);
+    const mentioned = mentionedIn(body, await assignableMembers(tx, ctx)).filter((u) => u !== ctx.user.id);
+    const event = { orgId: ctx.org.id, spaceId: ctx.space.id, body: body.slice(0, 280), href };
+    await deliver(tx, mentioned, { ...event, kind: "mention", title: `${ctx.user.name} mentioned you on “${item.title}”` });
+    const others = (await postFollowers(tx, item.id)).filter((u) => u !== ctx.user.id && !mentioned.includes(u));
+    await deliver(tx, others, { ...event, kind: "comment", title: `${ctx.user.name} commented on “${item.title}”` });
   });
   revalidatePath(spacePath(org, space), "layout");
 }
@@ -183,7 +204,7 @@ export async function shareForReview(org: string, space: string) {
 }
 
 /** Inline caption help (CT-08). Returns a suggestion; nothing is saved until the person inserts it. */
-export async function captionAssist(org: string, space: string, contentId: string, mode: string): Promise<{ text?: string; error?: string }> {
+export async function captionAssist(org: string, space: string, contentId: string, mode: string, platform?: string): Promise<{ text?: string; error?: string }> {
   const { CAPTION_MODES, aiErrorMessage, captionHelp, creditsUsedThisMonth, getBrandBrain, recordUsage } = await import("@/server/ai/service");
   const ctx = await requireSpaceAction(org, space, "content.edit");
   const kind = z.enum(Object.keys(CAPTION_MODES) as [keyof typeof CAPTION_MODES, ...(keyof typeof CAPTION_MODES)[]]).parse(mode);
@@ -191,8 +212,12 @@ export async function captionAssist(org: string, space: string, contentId: strin
   const post = await withOrg(ctx.org.id, async (tx) => {
     const [item] = await tx.select().from(contentItems).where(and(eq(contentItems.id, uuid.parse(contentId)), eq(contentItems.spaceId, ctx.space.id)));
     if (!item) return null;
-    const pl = await tx.select({ kind: placements.kind }).from(placements).where(eq(placements.contentItemId, item.id));
-    return { title: item.title, caption: item.caption, pillar: item.pillar, placements: pl.map((p) => p.kind) };
+    const all = await tx.select({ kind: placements.kind, captionOverride: placements.captionOverride }).from(placements).where(eq(placements.contentItemId, item.id));
+    // CT-06: working on one platform's caption, so only its text and its placements.
+    const only = platform ? platformSchema.parse(platform) : null;
+    const pl = only ? all.filter((p) => PLACEMENTS[p.kind].platform === only) : all;
+    const caption = only ? (pl.find((p) => p.captionOverride !== null)?.captionOverride ?? item.caption) : item.caption;
+    return { title: item.title, caption, pillar: item.pillar, placements: pl.map((p) => p.kind) };
   });
   if (!post) return { error: "Post not found." };
   try {
@@ -203,4 +228,24 @@ export async function captionAssist(org: string, space: string, contentId: strin
   } catch (e) {
     return { error: aiErrorMessage(e) };
   }
+}
+
+/* ---------- Per-platform captions (CT-06) ---------- */
+
+export async function customiseCaptions(org: string, space: string, contentId: string) {
+  const ctx = await requireSpaceAction(org, space, "content.edit");
+  await splitCaptions(ctx, uuid.parse(contentId));
+  revalidatePath(spacePath(org, space), "layout");
+}
+
+export async function savePlatformCaption(org: string, space: string, contentId: string, platform: string, value: string) {
+  const ctx = await requireSpaceAction(org, space, "content.edit");
+  await setPlatformCaption(ctx, uuid.parse(contentId), platformSchema.parse(platform), z.string().max(65_000).parse(value));
+  revalidatePath(spacePath(org, space), "layout");
+}
+
+export async function keepOneCaption(org: string, space: string, contentId: string, keep: string) {
+  const ctx = await requireSpaceAction(org, space, "content.edit");
+  await mergeCaptions(ctx, uuid.parse(contentId), platformSchema.parse(keep));
+  revalidatePath(spacePath(org, space), "layout");
 }

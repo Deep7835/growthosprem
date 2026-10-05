@@ -31,6 +31,8 @@ interface Props {
   toContent: (id: string) => Promise<Result<{ contentId: string }>>;
   suggest: () => Promise<Result<{ assignments: { id: string; pillar: string }[] }>>;
   accept: (assignments: { id: string; pillar: string }[]) => Promise<Result>;
+  /** ?idea= from search: open that idea straight away. */
+  openId?: string | null;
 }
 
 export function IdeaBank(props: Props) {
@@ -41,9 +43,10 @@ export function IdeaBank(props: Props) {
   const [source, setSource] = useState("");
   const [pillar, setPillar] = useState("");
   const [tag, setTag] = useState("");
-  const [used, setUsed] = useState<"hide" | "show">("hide");
+  const linked = props.openId ? (data.ideas.find((i) => i.id === props.openId) ?? null) : null;
+  const [used, setUsed] = useState<"hide" | "show">(linked?.contentItemId ? "show" : "hide");
   const [draft, setDraft] = useState("");
-  const [open, setOpen] = useState<Idea | "new" | null>(null);
+  const [open, setOpen] = useState<Idea | "new" | null>(linked);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<{ id: string; pillar: string; keep: boolean }[] | null>(null);
   const [pending, start] = useTransition();

@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { addComment, captionAssist, moveContent, shareForReview, updateContentField } from "@/app/o/[org]/s/[space]/actions";
+import { addComment, captionAssist, customiseCaptions, moveContent, savePlatformCaption, shareForReview, updateContentField, keepOneCaption } from "@/app/o/[org]/s/[space]/actions";
 import { addPlatform, markManual, removePlatform, retry, schedule, shareToFeed, unschedule } from "@/app/o/[org]/s/[space]/publish-actions";
 import type { PublishView } from "@/server/publishing";
 import { PreviewSwitcher } from "@/components/preview/PostPreview";
 import { LeftTabs } from "./LeftTabs";
 import { PublishingSection, ScheduleControls } from "./Publishing";
-import { CaptionAssist } from "@/components/ai/CaptionAssist";
+import { CaptionEditor } from "./CaptionEditor";
 import { attachToContent, detachFromContent, moveContentMedia } from "@/app/o/[org]/s/[space]/media/actions";
 import { ContentMedia } from "@/components/media/ContentMedia";
 import { AvatarStack, PublishState, buttonClass } from "@/components/ui";
@@ -57,7 +57,6 @@ export function ContentPanel({
   const { item } = detail;
   const save = (field: string) => updateContentField.bind(null, org, space, item.id, field);
   const platforms = [...new Set(detail.placements.map((p) => PLACEMENTS[p.kind as PlacementKind].platform))] as Platform[];
-  const counters = platforms.map((p) => ({ label: PLATFORM_NAMES[p], limit: CAPTION_LIMITS[p] }));
   const privateComments = detail.comments.filter((c) => c.visibility === "private");
   const publicComments = detail.comments.filter((c) => c.visibility === "public");
 
@@ -165,28 +164,21 @@ export function ContentPanel({
             )}
           />
 
-          <div id="panel-caption" className="flex flex-col gap-1">
-            <h3 className="px-2 text-sm font-semibold">Caption</h3>
-            <InlineField
-              key={`caption-${item.caption}`}
-              label="Caption"
-              initial={item.caption}
-              save={save("caption")}
-              multiline
-              readOnly={!canEdit}
-              placeholder="Write a caption…"
-              className="border-line text-[15px] leading-relaxed"
-              counter={counters}
-            />
-            {canEdit && (
-              <CaptionAssist
-                caption={item.caption}
-                assist={captionAssist.bind(null, org, space, item.id)}
-                setCaption={save("caption")}
-                setHashtags={save("hashtags")}
-              />
-            )}
-          </div>
+          <CaptionEditor
+            shared={item.caption}
+            platforms={platforms.map((p) => {
+              const mine = detail.placements.filter((pl) => PLACEMENTS[pl.kind as PlacementKind].platform === p);
+              const live = mine.find((pl) => pl.state !== "published" && pl.captionOverride !== null) ?? mine.find((pl) => pl.captionOverride !== null);
+              return { id: p, label: PLATFORM_NAMES[p], limit: CAPTION_LIMITS[p], caption: live?.captionOverride ?? null };
+            })}
+            canEdit={canEdit}
+            saveShared={save("caption")}
+            savePlatform={savePlatformCaption.bind(null, org, space, item.id)}
+            customise={customiseCaptions.bind(null, org, space, item.id)}
+            merge={keepOneCaption.bind(null, org, space, item.id)}
+            assist={captionAssist.bind(null, org, space, item.id)}
+            setHashtags={save("hashtags")}
+          />
           <div className="flex flex-col gap-1">
             <h3 className="px-2 text-sm font-semibold">Hashtags</h3>
             <InlineField key={`hashtags-${item.hashtags}`} label="Hashtags" initial={item.hashtags} save={save("hashtags")} readOnly={!canEdit} placeholder="#diwali #cafe" />
