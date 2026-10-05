@@ -33,6 +33,20 @@ export const ProposeCaptions = z.object({
   changes: z.array(CaptionChange).min(1).max(20),
 });
 
+export const ProposedIdea = z.object({
+  title: z.string().trim().min(1).max(200),
+  notes: z.string().max(2000).optional(),
+  pillar: z.string().trim().max(60).optional(),
+  source: z.enum(["ai", "trend", "competitor"]).default("ai"),
+  tags: z.array(z.string().max(40)).max(10).optional(),
+});
+
+export const ProposeIdeas = z.object({
+  space: spaceSlug,
+  summary: z.string().max(200).optional(),
+  ideas: z.array(ProposedIdea).min(1).max(12),
+});
+
 export const AnalyticsInput = z.object({ space: spaceSlug, days: z.union([z.literal(7), z.literal(30), z.literal(90)]).default(30) });
 export const SpaceInput = z.object({ space: spaceSlug });
 export const ListPostsInput = z.object({
@@ -44,3 +58,4 @@ export const ListPostsInput = z.object({
 
 export type DraftPostsPayload = z.infer<typeof ProposeDraftPosts>;
 export type CaptionsPayload = z.infer<typeof ProposeCaptions>;
+export type IdeasPayload = z.infer<typeof ProposeIdeas>;

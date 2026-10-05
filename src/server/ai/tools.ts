@@ -8,7 +8,7 @@ import { formatSchedule } from "@/lib/format";
 import { getSpaceAnalytics } from "@/server/analytics";
 import { getSpaceAudit } from "@/server/audit";
 import { listVisibleSpaces, spaceContextForRoute } from "@/server/tenancy";
-import { AnalyticsInput, ListPostsInput, ProposeCaptions, ProposeDraftPosts, SpaceInput } from "./schemas";
+import { AnalyticsInput, ListPostsInput, ProposeCaptions, ProposeDraftPosts, ProposeIdeas, SpaceInput } from "./schemas";
 
 export interface CopilotScope {
   orgSlug: string;
@@ -129,9 +129,40 @@ export const COPILOT_TOOLS: Tool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "propose_ideas",
+    description:
+      "Proposes ideas for the space's Idea Bank as an action card (AI-05: Add to Idea Bank). Use it for brainstorming, trend or competitor angles the person wants to keep without scheduling yet. Nothing is saved until the person approves.",
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        space,
+        summary: { type: "string" },
+        ideas: {
+          type: "array",
+          maxItems: 12,
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "The idea as a short working title or hook." },
+              notes: { type: "string", description: "The angle: what to show and why it should work for this brand." },
+              pillar: { type: "string", description: "Content pillar, reusing the brand's existing pillars where they fit." },
+              source: { type: "string", enum: ["ai", "trend", "competitor"] },
+              tags: { type: "array", items: { type: "string" } },
+            },
+            required: ["title"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["ideas"],
+      additionalProperties: false,
+    },
+  },
 ];
 
-export const PROPOSAL_TOOLS = new Set(["propose_draft_posts", "propose_captions"]);
+export const PROPOSAL_TOOLS = new Set(["propose_draft_posts", "propose_captions", "propose_ideas"]);
 export const TOOL_LABELS: Record<string, string> = {
   list_spaces: "Looking at your spaces",
   get_space_snapshot: "Checking the board",
@@ -141,6 +172,7 @@ export const TOOL_LABELS: Record<string, string> = {
   get_brand_brain: "Reading Brand Brain",
   propose_draft_posts: "Preparing draft posts",
   propose_captions: "Preparing captions",
+  propose_ideas: "Collecting ideas",
 };
 
 class ToolError extends Error {}
@@ -263,8 +295,9 @@ export async function runTool(scope: CopilotScope, name: string, input: unknown,
         return { content: JSON.stringify({ space: ctx.space.name, website, description, audience, voice, dos, donts, offers, usps, faqs, competitors, captionLanguage }) };
       }
       case "propose_draft_posts":
-      case "propose_captions": {
-        const parsed = name === "propose_draft_posts" ? ProposeDraftPosts.parse(input) : ProposeCaptions.parse(input);
+      case "propose_captions":
+      case "propose_ideas": {
+        const parsed = name === "propose_draft_posts" ? ProposeDraftPosts.parse(input) : name === "propose_ideas" ? ProposeIdeas.parse(input) : ProposeCaptions.parse(input);
         const ctx = await resolveSpace(scope, parsed.space, "content.edit");
         if (name === "propose_captions") {
           const ids = (parsed as z.infer<typeof ProposeCaptions>).changes.map((c) => c.post_id);

@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { createPgliteDb, withOrg, type Db } from "@/db/core";
 import * as s from "@/db/schema";
@@ -156,5 +156,27 @@ describe("action cards", () => {
     await undoAction(db, orgId, id, prem);
     const [restored] = await withOrg(db, orgId, (tx) => tx.select().from(s.contentItems).where(eq(s.contentItems.id, brunch.id)));
     expect(restored.caption).toBe(brunch.caption);
+  });
+
+  it("adds approved ideas to the Idea Bank as AI ideas, and undo keeps ones that became posts", async () => {
+    const id = await propose("propose_ideas", {
+      space: "cafe",
+      ideas: [
+        { title: "Chai vs coffee taste test", pillar: "Education", tags: ["reel"] },
+        { title: "Competitor's monsoon combo", source: "competitor" },
+      ],
+    });
+    const out = await executeAction(db, orgId, id, prem);
+    const ideaIds = out.result.ideaIds as string[];
+    const rows = await withOrg(db, orgId, (tx) => tx.select().from(s.ideas).where(inArray(s.ideas.id, ideaIds)));
+    expect(rows.map((r) => [r.title, r.source, r.pillar]).sort()).toEqual([
+      ["Chai vs coffee taste test", "ai", "Education"],
+      ["Competitor's monsoon combo", "competitor", null],
+    ]);
+    const [post] = await withOrg(db, orgId, (tx) => tx.select().from(s.contentItems).limit(1));
+    await withOrg(db, orgId, (tx) => tx.update(s.ideas).set({ contentItemId: post.id }).where(eq(s.ideas.id, ideaIds[0])));
+    expect(await undoAction(db, orgId, id, prem)).toEqual({ kept: 1 });
+    const left = await withOrg(db, orgId, (tx) => tx.select().from(s.ideas).where(inArray(s.ideas.id, ideaIds)));
+    expect(left.map((r) => r.id)).toEqual([ideaIds[0]]);
   });
 });

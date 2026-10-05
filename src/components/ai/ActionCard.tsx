@@ -6,6 +6,14 @@ import { PlacementChip, buttonClass } from "@/components/ui";
 import type { PlacementKind } from "@/lib/placements";
 import type { ActionView } from "@/server/ai/view";
 
+interface IdeaRow {
+  title: string;
+  notes?: string;
+  pillar?: string;
+  source?: "ai" | "trend" | "competitor";
+  tags?: string[];
+}
+
 interface DraftRow {
   date: string;
   time: string;
@@ -34,8 +42,14 @@ export function ActionCard({
   dismiss: () => Promise<void>;
   undo: () => Promise<{ kept: number }>;
 }) {
-  const payload = action.payload as { summary?: string; posts?: DraftRow[]; changes?: { post_id: string; caption: string; hashtags?: string }[] };
+  const payload = action.payload as {
+    summary?: string;
+    posts?: DraftRow[];
+    changes?: { post_id: string; caption: string; hashtags?: string }[];
+    ideas?: IdeaRow[];
+  };
   const [posts, setPosts] = useState<DraftRow[]>(payload.posts ?? []);
+  const [ideas, setIdeas] = useState<IdeaRow[]>(payload.ideas ?? []);
   const [changes, setChanges] = useState(payload.changes ?? []);
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -51,10 +65,13 @@ export function ActionCard({
     });
 
   const isDrafts = action.tool === "propose_draft_posts";
-  const count = isDrafts ? posts.length : changes.length;
+  const isIdeas = action.tool === "propose_ideas";
+  const count = isDrafts ? posts.length : isIdeas ? ideas.length : changes.length;
   const title = isDrafts
     ? `Create ${count} draft post${count === 1 ? "" : "s"} in ${action.spaceName}`
-    : `Update ${count} caption${count === 1 ? "" : "s"} in ${action.spaceName}`;
+    : isIdeas
+      ? `Add ${count} idea${count === 1 ? "" : "s"} to ${action.spaceName}’s Idea Bank`
+      : `Update ${count} caption${count === 1 ? "" : "s"} in ${action.spaceName}`;
   const board = `/o/${org}/s/${action.spaceSlug}/board`;
   const proposed = action.state === "proposed";
 
@@ -68,7 +85,34 @@ export function ActionCard({
         {payload.summary && <span className="text-xs text-muted">{payload.summary}</span>}
       </header>
 
-      {isDrafts ? (
+      {isIdeas ? (
+        <ul className="divide-y divide-line-soft">
+          {ideas.map((idea, i) => (
+            <li key={i} className="flex flex-col gap-1.5 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {editing && proposed ? (
+                  <input
+                    aria-label={`Idea ${i + 1}`}
+                    value={idea.title}
+                    onChange={(e) => setIdeas(ideas.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
+                    className="h-9 min-w-[200px] flex-1 rounded-lg border border-line px-2 text-sm"
+                  />
+                ) : (
+                  <span className="min-w-[200px] flex-1 text-sm font-medium">{idea.title}</span>
+                )}
+                {idea.pillar && <span className="rounded-full border border-line px-2 py-0.5 text-[11px] font-semibold">{idea.pillar}</span>}
+                {idea.source && idea.source !== "ai" && <span className="text-xs text-muted">{idea.source === "trend" ? "Trend" : "Competitor"}</span>}
+                {editing && proposed && (
+                  <button type="button" onClick={() => setIdeas(ideas.filter((_, j) => j !== i))} className={buttonClass("ghost", "sm")}>
+                    Remove
+                  </button>
+                )}
+              </div>
+              {idea.notes && <p className="line-clamp-2 text-[13px] text-ink-2">{idea.notes}</p>}
+            </li>
+          ))}
+        </ul>
+      ) : isDrafts ? (
         <ul className="divide-y divide-line-soft">
           {posts.map((p, i) => (
             <li key={i} className="flex flex-col gap-2 px-4 py-3">
@@ -145,7 +189,7 @@ export function ActionCard({
             <button
               type="button"
               disabled={pending || count === 0}
-              onClick={() => run(() => approve({ ...payload, ...(isDrafts ? { posts } : { changes }) }))}
+              onClick={() => run(() => approve({ ...payload, ...(isDrafts ? { posts } : isIdeas ? { ideas } : { changes }) }))}
               className={buttonClass("primary")}
             >
               {pending ? "Applying…" : "Approve and add"}
@@ -161,10 +205,14 @@ export function ActionCard({
         ) : action.state === "executed" ? (
           <>
             <span className="text-sm font-semibold text-success-ink">
-              {isDrafts ? `${(action.result?.contentIds as string[] | undefined)?.length ?? count} drafts added under “Idea”.` : "Captions updated."} Logged as “by AI Copilot”.
+              {isDrafts
+                ? `${(action.result?.contentIds as string[] | undefined)?.length ?? count} drafts added under “Idea”. Logged as “by AI Copilot”.`
+                : isIdeas
+                  ? `${(action.result?.ideaIds as string[] | undefined)?.length ?? count} ideas added to the Idea Bank.`
+                  : "Captions updated. Logged as “by AI Copilot”."}
             </span>
-            <Link href={board} className={buttonClass("secondary", "sm")}>
-              Open the Board
+            <Link href={isIdeas ? `/o/${org}/s/${action.spaceSlug}/ideas` : board} className={buttonClass("secondary", "sm")}>
+              {isIdeas ? "Open the Idea Bank" : "Open the Board"}
             </Link>
             <button
               type="button"

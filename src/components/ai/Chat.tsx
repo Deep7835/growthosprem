@@ -73,6 +73,7 @@ const TOOL_LABEL: Record<string, string> = {
   get_brand_brain: "Reading Brand Brain",
   propose_draft_posts: "Preparing draft posts",
   propose_captions: "Preparing captions",
+  propose_ideas: "Collecting ideas",
 };
 
 export function Chat({

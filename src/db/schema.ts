@@ -690,3 +690,29 @@ export const notes = pgTable(
   },
   (t) => [index("notes_space").on(t.spaceId, t.updatedAt)],
 );
+
+// Idea Bank (VW-07): ideas before they become posts.
+export const ideaSource = pgEnum("idea_source", ["me", "ai", "trend", "competitor"]);
+
+export const ideas = pgTable(
+  "ideas",
+  {
+    id: id(),
+    orgId: orgId(),
+    spaceId: uuid("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    notes: text("notes").notNull().default(""),
+    source: ideaSource("source").notNull().default("me"),
+    pillar: text("pillar"),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    // Reference links (http/https only) and images from the space's media library.
+    links: jsonb("links").$type<{ url: string; title?: string }[]>().notNull().default([]),
+    mediaIds: uuid("media_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    // Set by "Turn into content".
+    contentItemId: uuid("content_item_id").references(() => contentItems.id, { onDelete: "set null" }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ideas_space").on(t.spaceId, t.createdAt)],
+);

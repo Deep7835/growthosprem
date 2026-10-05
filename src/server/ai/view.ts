@@ -11,7 +11,7 @@ type Block = Anthropic.Beta.Messages.BetaContentBlockParam;
 
 export interface ActionView {
   id: string;
-  tool: "propose_draft_posts" | "propose_captions";
+  tool: "propose_draft_posts" | "propose_captions" | "propose_ideas";
   state: "proposed" | "executed" | "dismissed" | "failed" | "undone";
   spaceSlug: string;
   spaceName: string;

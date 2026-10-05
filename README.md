@@ -133,6 +133,20 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Idea Bank (`/o/[org]/s/[space]/ideas`, PRD VW-07, AI-05)
+
+- Ideas with title, notes, source (Me, AI, Trend, Competitor), pillar, tags, reference links (http/https only) and
+  reference images from the media library or uploaded on the spot. Quick add from one box; full details in a dialog.
+- Cards with search and filters (source, pillar, tag, include ideas already used), or "By pillar" columns where you
+  drag an idea to change its pillar.
+- "Sort into pillars with AI" suggests a pillar for every idea without one, reusing the space's existing pillars (from
+  ideas, posts and imported history). Suggestions are editable and only applied when you approve; usage is metered.
+- "Turn into content" creates a draft in the first Not started status with the idea's notes and links as the caption,
+  its pillar, tags and images, and links back ("Became a post").
+- AI Copilot can propose ideas as an "Add to Idea Bank" card (AI-05); approving saves them as AI, Trend or Competitor
+  ideas, and Undo removes the ones not yet turned into posts. A new built-in prompt brainstorms ideas.
+- Not yet: trend and competitor feeds that suggest ideas automatically (6.17), voice-memo ideas, sharing ideas with clients.
+
 ### Notes (`/o/[org]/s/[space]/notes`, PRD VW-06)
 
 - Rich-text notes per space for briefs and meeting notes, optionally tied to a project; pin, search, filter by project,
@@ -283,7 +297,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Per-platform captions (CT-06) and the Idea Bank (VW-07).
+1. Per-platform captions (CT-06) and the strategy tools: plan 30 days, festival calendar (SG-01 to SG-04).
 2. Notifications page and preferences (6.18), AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

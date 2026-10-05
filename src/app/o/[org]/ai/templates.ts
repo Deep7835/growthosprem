@@ -4,6 +4,7 @@ export const SPACE_TEMPLATES = [
   "Plan next week’s posts based on what works for us.",
   "Write captions for the posts waiting for client review.",
   "Plan a Diwali week: teaser, offer and follow-up posts.",
+  "Brainstorm 8 post ideas from what works for us and add them to the Idea Bank.",
 ];
 
 export const ORG_TEMPLATES = ["Which client needs attention this week?", "Summarise every space’s last 30 days in one line each.", "What’s waiting for client approval?"];

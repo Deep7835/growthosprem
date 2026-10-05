@@ -1,12 +1,13 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, max } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, max } from "drizzle-orm";
 import { withOrg, type Db } from "@/db/core";
-import { aiActions, contentItems, placements, socialAccounts, spaces, statuses } from "@/db/schema";
+import { aiActions, contentItems, ideas, placements, socialAccounts, spaces, statuses } from "@/db/schema";
+import { cleanTags } from "@/lib/table";
 import { zonedToUtc } from "@/lib/analytics/time";
 import { PLACEMENTS } from "@/lib/placements";
 import { logActivity } from "@/server/activity";
 import { returnToReviewIfApproved } from "@/server/approval";
-import { ProposeCaptions, ProposeDraftPosts } from "./schemas";
+import { ProposeCaptions, ProposeDraftPosts, ProposeIdeas } from "./schemas";
 
 type Person = { id: string; name: string };
 
@@ -84,6 +85,24 @@ export async function executeAction(db: Db, orgId: string, actionId: string, per
         await returnToReviewIfApproved(tx, item);
       }
       result = { before, after: payload.changes };
+    } else if (action.tool === "propose_ideas") {
+      const payload = ProposeIdeas.parse(editedPayload ?? action.payload);
+      const rows = await tx
+        .insert(ideas)
+        .values(
+          payload.ideas.map((i) => ({
+            orgId,
+            spaceId: space.id,
+            title: i.title,
+            notes: i.notes ?? "",
+            pillar: i.pillar || null,
+            source: i.source,
+            tags: cleanTags(i.tags ?? []),
+            createdBy: person.id,
+          })),
+        )
+        .returning({ id: ideas.id });
+      result = { ideaIds: rows.map((r) => r.id) };
     } else {
       throw new Error(`Unknown action ${action.tool}.`);
     }
@@ -124,6 +143,11 @@ export async function undoAction(db: Db, orgId: string, actionId: string, person
             .where(and(inArray(contentItems.id, ids), inArray(contentItems.statusId, notStarted), gte(contentItems.createdAt, action.createdAt)))
             .returning({ id: contentItems.id })
         : [];
+      kept = ids.length - removed.length;
+    } else if (action.tool === "propose_ideas") {
+      // Ideas already turned into posts are kept.
+      const ids = (result.ideaIds as string[]) ?? [];
+      const removed = ids.length ? await tx.delete(ideas).where(and(inArray(ideas.id, ids), isNull(ideas.contentItemId))).returning({ id: ideas.id }) : [];
       kept = ids.length - removed.length;
     } else if (action.tool === "propose_captions") {
       const before = result.before as { id: string; caption: string; hashtags: string }[];

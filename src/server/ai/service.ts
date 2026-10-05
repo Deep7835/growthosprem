@@ -242,3 +242,42 @@ export async function getBrandBrain(orgId: string, spaceId: string) {
   const [brain] = await withOrg(orgId, (tx) => tx.select().from(brandBrains).where(eq(brandBrains.spaceId, spaceId)));
   return brain ?? null;
 }
+
+/* ---------- Idea Bank: group ideas by pillar (VW-07) ---------- */
+
+const PillarAssignments = z.object({
+  assignments: z.array(z.object({ id: z.string(), pillar: z.string() })),
+});
+
+/**
+ * Suggests a content pillar for each idea, reusing the space's existing pillars where they fit
+ * and keeping the set small. Suggestions only: nothing changes until the person approves.
+ */
+export async function suggestIdeaPillars(input: {
+  ideas: { id: string; title: string; notes: string }[];
+  pillars: string[];
+  brand: Partial<BrandBrainDraft> | null;
+}): Promise<{ assignments: { id: string; pillar: string }[]; usage: TokenUsage; model: string }> {
+  const api = anthropic();
+  if (!api) throw new Error(AI_SETUP_MESSAGE);
+  const list = input.ideas.map((i) => `- id ${i.id}: ${i.title}${i.notes ? ` (${i.notes.slice(0, 200).replace(/\n/g, " ")})` : ""}`).join("\n");
+  const response = await api.beta.messages.parse({
+    model: WRITING_MODEL,
+    max_tokens: 4000,
+    output_config: { effort: "low", format: betaZodOutputFormat(PillarAssignments) },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    system:
+      "You organise a social media team's post ideas into content pillars: the 3 to 6 recurring themes a brand posts about (for example Education, Behind the scenes, Offers, Community). Reuse the brand's existing pillars whenever an idea fits one, spelled exactly as given. Only add a new pillar when an idea clearly fits none. Pillar names are short (1 to 3 words), in Title Case.",
+    messages: [
+      {
+        role: "user",
+        content: `Brand: ${input.brand?.description || "not described yet"}\nExisting pillars: ${input.pillars.join(", ") || "none yet"}\n\nIdeas:\n${list}\n\nGive one pillar for every idea id.`,
+      },
+    ],
+  });
+  if (response.stop_reason === "refusal") throw new Error("AI couldn’t sort these ideas.");
+  const known = new Set(input.ideas.map((i) => i.id));
+  const assignments = (response.parsed_output?.assignments ?? []).filter((a) => known.has(a.id) && a.pillar.trim()).map((a) => ({ id: a.id, pillar: a.pillar.trim().slice(0, 60) }));
+  return { assignments, usage: response.usage, model: response.model };
+}

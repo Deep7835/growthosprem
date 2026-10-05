@@ -33,6 +33,9 @@ export default async function SpaceLayout({ children, params }: LayoutProps<"/o/
             <Link href={`${base}/settings/accounts`} className={buttonClass("secondary", "sm")}>
               Settings
             </Link>
+            <Link href={`${base}/ideas`} className={buttonClass("secondary", "sm")}>
+              Idea Bank
+            </Link>
             <Link href={`${base}/media`} className={buttonClass("secondary", "sm")}>
               Media
             </Link>
