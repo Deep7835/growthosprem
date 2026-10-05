@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { SourceLabel, buttonClass } from "@/components/ui";
+import { HOOK_TYPES } from "@/lib/ai/tags";
 import type { Report } from "@/lib/analytics/report";
 import { PLATFORM_NAMES } from "@/lib/placements";
 
@@ -284,7 +285,54 @@ const COLUMNS = [
 ] as const;
 type SortKey = (typeof COLUMNS)[number][0];
 
-export function ContentTable({ posts }: { posts: Post[] }) {
+type Tags = { pillar: string; topic: string; hookType: string };
+
+/** Corrects one post's AI tags in place. */
+function TagEditor({ post, pillars, save, onDone }: { post: Post; pillars: string[]; save: (id: string, tags: Tags) => Promise<{ error?: string }>; onDone: () => void }) {
+  const [tags, setTags] = useState<Tags>({ pillar: post.pillar ?? "", topic: post.topic ?? "", hookType: post.hookType ?? "" });
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const field = "h-8 rounded-md border border-line bg-surface px-2 text-sm";
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await save(post.id, tags);
+          if (r.error) setError(r.error);
+          else onDone();
+        })
+      }}
+      className="mt-2 flex flex-wrap items-center gap-2"
+    >
+      <input aria-label="Pillar" list="tag-pillars" value={tags.pillar} onChange={(e) => setTags({ ...tags, pillar: e.target.value })} placeholder="Pillar" maxLength={60} className={`${field} w-36`} />
+      <datalist id="tag-pillars">
+        {pillars.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
+      <input aria-label="Topic" value={tags.topic} onChange={(e) => setTags({ ...tags, topic: e.target.value })} placeholder="Topic" maxLength={80} className={`${field} w-40`} />
+      <select aria-label="Hook" value={tags.hookType} onChange={(e) => setTags({ ...tags, hookType: e.target.value })} className={field}>
+        <option value="">No hook</option>
+        {HOOK_TYPES.filter((h) => h !== "None").map((h) => (
+          <option key={h} value={h}>
+            {h}
+          </option>
+        ))}
+      </select>
+      <button type="submit" disabled={pending} className={buttonClass("primary", "sm")}>
+        Save tags
+      </button>
+      <button type="button" onClick={onDone} className={buttonClass("ghost", "sm")}>
+        Cancel
+      </button>
+      {error && <span className="text-xs text-danger">{error}</span>}
+    </form>
+  );
+}
+
+export function ContentTable({ posts, saveTags }: { posts: Post[]; saveTags?: (id: string, tags: Tags) => Promise<{ error?: string }> }) {
+  const [editing, setEditing] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "publishedAt", desc: true });
   const [format, setFormat] = useState("all");
   const [pillar, setPillar] = useState("all");
@@ -350,9 +398,16 @@ export function ContentTable({ posts }: { posts: Post[] }) {
               <tr key={p.id} className="border-t border-line-soft">
                 <td className="px-3 py-2.5">
                   <span className="block font-semibold">{p.title}</span>
-                  <span className="text-xs capitalize text-muted">
-                    {PLATFORM_NAMES[p.platform]} {FORMAT[p.format]} · {p.pillar}
+                  <span className="text-xs text-muted">
+                    {PLATFORM_NAMES[p.platform]} {FORMAT[p.format]}
+                    {[p.pillar, p.topic, p.hookType].filter(Boolean).map((t) => ` · ${t}`)}
+                    {saveTags && editing !== p.id && (
+                      <button type="button" onClick={() => setEditing(p.id)} className="ml-2 font-semibold text-ink-2 hover:text-ink">
+                        {p.pillar || p.topic || p.hookType ? "Edit tags" : "Add tags"}
+                      </button>
+                    )}
                   </span>
+                  {saveTags && editing === p.id && <TagEditor post={p} pillars={pillars} save={saveTags} onDone={() => setEditing(null)} />}
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums text-ink-2">{shortDate(p.publishedAt)}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{num(p.views)}</td>

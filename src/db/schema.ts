@@ -420,13 +420,18 @@ export const posts = pgTable(
     caption: text("caption").notNull().default(""),
     permalink: text("permalink"),
     contentItemId: uuid("content_item_id").references(() => contentItems.id, { onDelete: "set null" }),
-    // AI tags (PRD 9, "AI tagging"): pillar and topic.
+    // AI tags (PRD 9, "AI tagging"): pillar, topic and hook type. Format comes from the platform.
     pillar: text("pillar"),
     topic: text("topic"),
+    hookType: text("hook_type"),
+    // When AI last tagged it; null means it's waiting. "manual" tags are never overwritten.
+    taggedAt: timestamp("tagged_at", { withTimezone: true }),
+    tagSource: text("tag_source").$type<"ai" | "manual">(),
   },
   (t) => [
     uniqueIndex("posts_account_external").on(t.socialAccountId, t.externalId),
     index("posts_space_published").on(t.spaceId, t.publishedAt),
+    index("posts_untagged").on(t.spaceId, t.taggedAt),
   ],
 );
 

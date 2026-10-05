@@ -1,11 +1,11 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getSystemDb, withOrg } from "@/db";
-import { aiActions, aiConversations, organizations, spaces } from "@/db/schema";
+import { aiActions, aiConversations, organizations, posts, spaces } from "@/db/schema";
 import { canManageMembers } from "@/lib/permissions";
 import { dismissAction, executeAction, undoAction } from "@/server/ai/execute";
 import { getOrgContext, requireSpaceAction } from "@/server/tenancy";
@@ -67,4 +67,18 @@ export async function setAiBudget(org: string, formData: FormData) {
   const credits = z.coerce.number().int().min(0).max(1_000_000).parse(formData.get("credits"));
   await withOrg(ctx.org.id, (tx) => tx.update(organizations).set({ aiMonthlyCredits: credits }).where(eq(organizations.id, ctx.org.id)));
   revalidatePath(`/o/${org}/ai`, "layout");
+}
+
+/** Re-tags a space's posts' topics and hooks with AI; pillars and anything set by hand are kept. Owners and Admins. */
+export async function retagSpace(org: string, spaceId: string) {
+  const ctx = await getOrgContext(org);
+  if (!canManageMembers(ctx.role)) throw new Error("Only Owners and Admins can re-tag posts.");
+  const id = z.uuid().parse(spaceId);
+  await withOrg(ctx.org.id, (tx) =>
+    tx
+      .update(posts)
+      .set({ taggedAt: null, topic: null, hookType: null })
+      .where(and(eq(posts.spaceId, id), or(isNull(posts.tagSource), eq(posts.tagSource, "ai")))),
+  );
+  revalidatePath(`/o/${org}/ai/settings`);
 }

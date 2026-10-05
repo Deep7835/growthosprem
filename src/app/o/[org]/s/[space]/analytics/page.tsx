@@ -8,7 +8,7 @@ import { PLATFORM_NAMES, type Platform } from "@/lib/placements";
 import { getSpaceAnalytics } from "@/server/analytics";
 import { getSpaceContext } from "@/server/tenancy";
 import { toggleRecommendation } from "../audit/actions";
-import { refreshAnalytics } from "./actions";
+import { refreshAnalytics, setPostTags } from "./actions";
 
 export const metadata = { title: "Analytics" };
 
@@ -246,11 +246,18 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps<
             collectingSince={report.collectingSince}
           />
           <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-4">
-            <Breakdowns byFormat={report.breakdowns.byFormat} byPillar={report.breakdowns.byPillar} posts={report.breakdowns.posts} />
+            <Breakdowns
+              byFormat={report.breakdowns.byFormat}
+              byPillar={report.breakdowns.byPillar}
+              byTopic={report.breakdowns.byTopic}
+              byHook={report.breakdowns.byHook}
+              posts={report.breakdowns.posts}
+              tagged={report.breakdowns.tagged}
+            />
             <Heatmap cells={report.breakdowns.heatmap} />
           </div>
           <TopContent posts={report.posts} />
-          <ContentTable posts={report.posts} />
+          <ContentTable posts={report.posts} saveTags={ctx.can("content.edit") ? setPostTags.bind(null, org, space) : undefined} />
         </>
       )}
     </div>

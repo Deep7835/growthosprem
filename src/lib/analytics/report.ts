@@ -10,6 +10,9 @@ export const BREAKDOWN_DAYS = 90;
 
 export interface ReportPost extends PostFact {
   accountId: string;
+  /** AI tags (PRD 9). */
+  topic?: string | null;
+  hookType?: string | null;
 }
 
 export interface ReportAccount {
@@ -69,7 +72,7 @@ export interface Report {
   }[];
   contribution: Record<"engagement" | "views" | "followers", { platform: Platform; share: number; value: number }[]>;
   followerSeries: { day: string; followers: number }[];
-  breakdowns: { byFormat: Group[]; byPillar: Group[]; heatmap: HeatCell[]; posts: number };
+  breakdowns: { byFormat: Group[]; byPillar: Group[]; byTopic: Group[]; byHook: Group[]; heatmap: HeatCell[]; posts: number; tagged: number };
   posts: (Omit<ReportPost, "publishedAt"> & { publishedAt: string; engagement: number; engagementRate: number })[];
   insights: {
     happened: string;
@@ -228,8 +231,15 @@ export function computeReport(input: {
     breakdowns: {
       byFormat: groups(recent, (p) => p.format, (k) => FORMAT_NAMES[k] ?? k),
       byPillar: groups(recent, (p) => p.pillar, (k) => k.charAt(0).toUpperCase() + k.slice(1)),
+      // Topics are many and small: the 8 most posted about, compared once they have enough posts.
+      byTopic: groups(recent, (p) => p.topic ?? null, (k) => k.charAt(0).toUpperCase() + k.slice(1))
+        .sort((a, b) => b.posts - a.posts)
+        .slice(0, 8)
+        .sort((a, b) => (b.engagementRate ?? -1) - (a.engagementRate ?? -1) || b.posts - a.posts),
+      byHook: groups(recent, (p) => p.hookType ?? null, (k) => k),
       heatmap,
       posts: recent.length,
+      tagged: recent.filter((p) => p.topic || p.hookType).length,
     },
     posts: current
       .map((p) => ({ ...p, publishedAt: p.publishedAt.toISOString(), engagement: engagement(p), engagementRate: postEngagementRate(p) }))

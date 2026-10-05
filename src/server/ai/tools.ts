@@ -38,7 +38,7 @@ export const COPILOT_TOOLS: Tool[] = [
   {
     name: "get_analytics",
     description:
-      "Computed analytics for a space over the last 7, 30 or 90 days: followers, growth, engagement, views, posts, per-platform numbers, comparison with the previous period when available, top posts and breakdowns by format, pillar and time. These are the only numbers you may state as facts.",
+      "Computed analytics for a space over the last 7, 30 or 90 days: followers, growth, engagement, views, posts, per-platform numbers, comparison with the previous period when available, top posts and breakdowns by format, pillar, topic, hook type and time. These are the only numbers you may state as facts.",
     input_schema: {
       type: "object",
       properties: { space, days: { type: "integer", enum: [7, 30, 90], description: "Period length. Default 30." } },
@@ -237,6 +237,9 @@ export async function runTool(scope: CopilotScope, name: string, input: unknown,
             topPostsByViews: r.posts.slice(0, 5).map((p) => ({ title: p.title, format: p.format, platform: p.platform, views: p.views, engagementRate: pct(p.engagementRate) })),
             byFormatLast90Days: r.breakdowns.byFormat.map((g) => ({ format: g.name, posts: g.posts, engagementRate: g.engagementRate == null ? "not enough posts" : pct(g.engagementRate) })),
             byPillarLast90Days: r.breakdowns.byPillar.map((g) => ({ pillar: g.name, posts: g.posts, engagementRate: g.engagementRate == null ? "not enough posts" : pct(g.engagementRate) })),
+            // From AI tags; empty until posts are tagged.
+            byTopicLast90Days: r.breakdowns.byTopic.map((g) => ({ topic: g.name, posts: g.posts, engagementRate: g.engagementRate == null ? "not enough posts" : pct(g.engagementRate) })),
+            byHookTypeLast90Days: r.breakdowns.byHook.map((g) => ({ hookType: g.name, posts: g.posts, engagementRate: g.engagementRate == null ? "not enough posts" : pct(g.engagementRate) })),
             whatHappened: r.insights.happened,
           }),
         };

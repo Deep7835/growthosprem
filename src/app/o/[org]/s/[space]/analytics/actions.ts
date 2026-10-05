@@ -1,9 +1,11 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { withOrg } from "@/db";
-import { spaces } from "@/db/schema";
+import { posts, spaces } from "@/db/schema";
+import { HOOK_TYPES } from "@/lib/ai/tags";
 import { REFRESH_INTERVAL_MS } from "@/server/analytics";
 import { requestSync } from "@/server/meta";
 import { requireSpaceAction } from "@/server/tenancy";
@@ -21,4 +23,26 @@ export async function refreshAnalytics(org: string, space: string): Promise<{ er
   await requestSync(ctx);
   revalidatePath(`/o/${org}/s/${space}/analytics`);
   return {};
+}
+
+/** Corrects a post's AI tags. Hand-set tags are kept: AI never tags that post again. */
+export async function setPostTags(org: string, space: string, postId: string, tags: { pillar: string; topic: string; hookType: string }): Promise<{ error?: string }> {
+  try {
+    const ctx = await requireSpaceAction(org, space, "content.edit");
+    const id = z.uuid().parse(postId);
+    const clean = (v: string, max: number) => v.trim().slice(0, max) || null;
+    const hook = z.enum(HOOK_TYPES).or(z.literal("")).parse(tags.hookType);
+    const updated = await withOrg(ctx.org.id, (tx) =>
+      tx
+        .update(posts)
+        .set({ pillar: clean(tags.pillar, 60), topic: clean(tags.topic, 80), hookType: hook && hook !== "None" ? hook : null, tagSource: "manual", taggedAt: new Date() })
+        .where(and(eq(posts.id, id), eq(posts.spaceId, ctx.space.id)))
+        .returning({ id: posts.id }),
+    );
+    if (!updated.length) return { error: "That post isn’t in this space." };
+    revalidatePath(`/o/${org}/s/${space}/analytics`);
+    return {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Couldn’t save the tags." };
+  }
 }

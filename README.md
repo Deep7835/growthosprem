@@ -133,6 +133,20 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### AI tagging of posts (PRD 9, AN-07)
+
+- Imported and published posts are tagged with a pillar, a topic and a hook type (Question, Bold claim, Number or list,
+  How-to, Story, Behind the scenes, Offer, Trend, Testimonial, Announcement). Format comes from the platform.
+- The worker looks for untagged posts every minute and tags them 25 at a time per space with the writing model (Sonnet
+  5.5, structured output), reusing the space's existing pillars. Only blanks are filled: a pillar that came from the
+  post's content item is kept. Usage is metered as "Post tagging"; it pauses when the AI budget is used up or the
+  organisation is read-only, and only runs when AI is set up.
+- Analytics breakdowns add Topic (the 8 most posted about) and Hook next to Format and Pillar, and say how many posts are
+  tagged. Each post in "All posts in this period" shows its tags; "Edit tags" corrects them, and hand-set tags are never
+  overwritten. AI Copilot's analytics tool sees the topic and hook breakdowns too.
+- AI settings › Post tagging shows tagged and waiting posts per space, with "Re-tag topics and hooks".
+- Not yet tested against the real API (no ANTHROPIC_API_KEY here); covered by tests with a stand-in model.
+
 ### Billing (Settings › Billing, PRD 6.20, OB-10, UI2-01, TM-04, MD-05), sample mode
 
 - Priced per active space with seats included (the PRD's working assumption). Plans, prices, seats, AI credits and storage
@@ -428,6 +442,6 @@ drizzle/                  SQL migrations
 ## Next milestones
 
 1. Connect Razorpay (India) and Stripe (elsewhere) to billing: checkout, webhooks, payment methods.
-2. AI tagging of imported posts, cloud storage driver (R2 or S3).
+2. Cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Space logos and custom planning-only platforms (SP-01, SP-03).

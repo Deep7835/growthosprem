@@ -270,15 +270,16 @@ export function FollowerGrowth({ series, subtitle, collectingSince }: { series: 
 
 /* ---------- Breakdowns: engagement rate by format or pillar ---------- */
 
-export function Breakdowns({ byFormat, byPillar, posts }: { byFormat: Group[]; byPillar: Group[]; posts: number }) {
-  const [by, setBy] = useState<"format" | "pillar">("format");
+export function Breakdowns({ byFormat, byPillar, byTopic, byHook, posts, tagged }: { byFormat: Group[]; byPillar: Group[]; byTopic: Group[]; byHook: Group[]; posts: number; tagged: number }) {
+  const [by, setBy] = useState<"format" | "pillar" | "topic" | "hook">("format");
   const { ref, bind, layer } = useTip();
-  const rows = by === "format" ? byFormat : byPillar;
+  const rows = by === "format" ? byFormat : by === "pillar" ? byPillar : by === "topic" ? byTopic : byHook;
+  const fromTags = by === "topic" || by === "hook";
   const max = Math.max(...rows.map((r) => r.engagementRate ?? 0), 0.01);
   return (
     <Card
-      title="Engagement rate by format and pillar"
-      subtitle={`Last 90 days (${posts} posts), so each group has enough posts to compare`}
+      title="Engagement rate by format, pillar, topic and hook"
+      subtitle={`Last 90 days (${posts} posts), so each group has enough posts to compare${fromTags ? `. Topics and hooks come from AI tags (${tagged} of ${posts} tagged).` : ""}`}
       action={
         <Segmented
           label="Breakdown"
@@ -287,12 +288,18 @@ export function Breakdowns({ byFormat, byPillar, posts }: { byFormat: Group[]; b
           options={[
             ["format", "Format"],
             ["pillar", "Pillar"],
+            ["topic", "Topic"],
+            ["hook", "Hook"],
           ]}
         />
       }
     >
       <div ref={ref} className="relative flex flex-col gap-3.5">
-        {rows.length === 0 && <p className="text-sm text-muted">No posts in the last 90 days.</p>}
+        {rows.length === 0 && (
+          <p className="text-sm text-muted">
+            {fromTags && posts > 0 ? "No AI tags yet. Posts are tagged automatically once AI is set up; it takes a few minutes after an import." : "No posts in the last 90 days."}
+          </p>
+        )}
         {rows.map((g) => (
           <div key={g.name} className="grid grid-cols-[150px_1fr] items-center gap-3 text-sm">
             <span className="text-ink-2">

@@ -30,6 +30,8 @@ export async function getSpaceAnalytics(ctx: SpaceContext, opts: { days: RangeDa
         title: p.title,
         format: p.format,
         pillar: p.pillar,
+        topic: p.topic,
+        hookType: p.hookType,
         platform: platformOf.get(p.socialAccountId)!,
         publishedAt: p.publishedAt,
         reach: m?.reach ?? 0,

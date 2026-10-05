@@ -1,14 +1,17 @@
-import { getSystemDb } from "@/db";
+import { count, inArray, sql } from "drizzle-orm";
+import { getSystemDb, withOrg } from "@/db";
+import { posts } from "@/db/schema";
+import { credentialsConfigured } from "@/lib/ai/client";
 import { listMembers } from "@/db/members";
 import { buttonClass } from "@/components/ui";
 import { canManageMembers } from "@/lib/permissions";
 import { creditsUsedThisMonth, usageThisMonth } from "@/server/ai/service";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
-import { setAiBudget } from "../actions";
+import { retagSpace, setAiBudget } from "../actions";
 
 export const metadata = { title: "AI settings" };
 
-const KIND = { copilot: "Copilot chat", caption: "Caption help", brand_brain: "Brand Brain drafts", ideas: "Idea Bank pillars", strategy: "Strategy", plan: "30-day plans" } as Record<string, string>;
+const KIND = { copilot: "Copilot chat", caption: "Caption help", brand_brain: "Brand Brain drafts", ideas: "Idea Bank pillars", strategy: "Strategy", plan: "30-day plans", tagging: "Post tagging" } as Record<string, string>;
 
 export default async function AiSettings({ params }: PageProps<"/o/[org]/ai/settings">) {
   const { org } = await params;
@@ -19,6 +22,21 @@ export default async function AiSettings({ params }: PageProps<"/o/[org]/ai/sett
     listMembers(await getSystemDb(), ctx.org.id),
     listVisibleSpaces(org),
   ]);
+  const tagging = spaces.length
+    ? await withOrg(ctx.org.id, (tx) =>
+        tx
+          .select({
+            spaceId: posts.spaceId,
+            total: count(),
+            waiting: sql<number>`count(*) filter (where ${posts.taggedAt} is null)::int`,
+            manual: sql<number>`count(*) filter (where ${posts.tagSource} = 'manual')::int`,
+          })
+          .from(posts)
+          .where(inArray(posts.spaceId, spaces.map((s) => s.id)))
+          .groupBy(posts.spaceId),
+      )
+    : [];
+  const aiReady = credentialsConfigured();
   const manage = canManageMembers(ctx.role);
   const sum = (key: "userId" | "spaceId" | "kind") => {
     const m = new Map<string, number>();
@@ -28,7 +46,7 @@ export default async function AiSettings({ params }: PageProps<"/o/[org]/ai/sett
     }
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   };
-  const name = (id: string) => members.find((m) => m.userId === id)?.name ?? "Former member";
+  const name = (id: string) => (id === "none" ? "Automatic (post tagging)" : (members.find((m) => m.userId === id)?.name ?? "Former member"));
   const spaceName = (id: string) => (id === "none" ? "Whole organisation" : (spaces.find((s) => s.id === id)?.name ?? "Another space"));
 
   return (
@@ -54,6 +72,38 @@ export default async function AiSettings({ params }: PageProps<"/o/[org]/ai/sett
           </form>
         ) : (
           <p className="text-sm text-muted">Owners and Admins can change the budget.</p>
+        )}
+      </section>
+      <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5">
+        <div>
+          <h2 className="text-lg font-semibold">Post tagging</h2>
+          <p className="text-sm text-muted">
+            Imported and published posts are tagged with a pillar, topic and hook type, so Analytics can show what works. It runs on its own a few minutes after posts arrive and
+            uses a small share of the budget.{" "}
+            {aiReady ? "" : "It starts once AI is set up (ANTHROPIC_API_KEY)."}
+          </p>
+        </div>
+        {tagging.length === 0 ? (
+          <p className="text-sm text-muted">No posts imported yet.</p>
+        ) : (
+          <ul className="divide-y divide-line-soft text-sm">
+            {tagging.map((t) => (
+              <li key={t.spaceId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <span className="font-semibold">{spaceName(t.spaceId)}</span>
+                <span className="text-muted">
+                  {t.total - t.waiting} of {t.total} tagged{t.waiting ? `, ${t.waiting} waiting` : ""}
+                  {t.manual ? `, ${t.manual} set by hand` : ""}
+                </span>
+                {manage && aiReady && t.total - t.waiting > 0 && (
+                  <form action={retagSpace.bind(null, org, t.spaceId)}>
+                    <button type="submit" className={buttonClass("ghost", "sm")}>
+                      Re-tag topics and hooks
+                    </button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
       <div className="grid gap-4 sm:grid-cols-3">

@@ -71,4 +71,14 @@ describe("analytics report", () => {
     expect(r.posts.length).toBe(r.kpis.posts.value);
     expect(r.posts[0].views).toBeGreaterThanOrEqual(r.posts.at(-1)!.views);
   });
+
+  it("breaks down by AI-tagged topic and hook type, counting how many posts are tagged", () => {
+    const hooks = ["Question", "Story", "Offer"];
+    const tagged = posts.map((p, i) => ({ ...p, topic: i % 4 === 0 ? null : `Topic ${i % 3}`, hookType: i % 4 === 0 ? null : hooks[i % 3] }));
+    const r = computeReport({ posts: tagged, snapshots, accounts, days: 90, platform: "all", now: NOW, timeZone: TZ });
+    expect(r.breakdowns.byHook.map((g) => g.name).sort()).toEqual(["Offer", "Question", "Story"]);
+    expect(r.breakdowns.byTopic.length).toBeLessThanOrEqual(8);
+    expect(r.breakdowns.tagged).toBeLessThan(r.breakdowns.posts);
+    expect(r.breakdowns.tagged).toBeGreaterThan(0);
+  });
 });
