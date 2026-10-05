@@ -26,11 +26,15 @@ async function run<T extends object>(org: string, space: string, fn: (ctx: Await
   }
 }
 
-export async function newTask(
-  org: string,
-  space: string,
-  input: { title: string; contentItemId?: string | null; projectId?: string | null; statusId?: string | null; assigneeId?: string | null; due?: string; priority?: string },
-): Promise<TaskResult<{ id: string }>> {
+type NewTaskInput = { title: string; contentItemId?: string | null; projectId?: string | null; statusId?: string | null; assigneeId?: string | null; due?: string; priority?: string };
+
+export async function newTask(org: string, space: string, input: NewTaskInput): Promise<TaskResult<{ id: string }>> {
+  return newTaskIn(org, space, null, input);
+}
+
+/** From a project's views (PJ-02) the task belongs to that project. */
+export async function newTaskIn(org: string, space: string, projectId: string | null, input: NewTaskInput): Promise<TaskResult<{ id: string }>> {
+  if (projectId && !input.contentItemId) input = { ...input, projectId };
   return run(org, space, async (ctx) => {
     const due = localDue.parse(input.due ?? "");
     const task = await createTask(ctx, {

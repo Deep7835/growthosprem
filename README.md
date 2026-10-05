@@ -133,6 +133,24 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Projects, statuses and the Create menu (PRD 6.4, 6.5, UI2-02 to UI2-04, ST-01 to ST-06, PJ-01 to PJ-05)
+
+- Projects (Space settings › Projects): "Create your new project" with name, goal, dates, colour and "Create a media
+  folder for this project" (on by default), then "Create and open" or "Create only". Settings (rename and fields; the
+  folder follows the name), Duplicate (settings only, not content), Archive and Restore ("Show archived projects"), and
+  Delete: tick whether to also delete its posts, tasks, notes and media (all off; the rest stays in the space without a
+  project), with a warning when its files are used elsewhere, enabled only after typing the name exactly.
+- Project views (`/o/[org]/s/[space]/p/[project]/board`, table, calendar, previews, notes) are the space's views
+  filtered to the project; anything created there joins it. The header shows "Space › Project", the sidebar lists open
+  projects under the space and highlights the current one (UI-08), and search opens projects there.
+- Statuses (Space settings › Statuses, also from the tab bar and "Manage statuses" in the post panel): content and task
+  sets side by side, grouped by category. Add, rename, recolour, change category, reorder within a category, map the
+  client review steps (each to one status) and choose which can autopost. Every category keeps at least one status;
+  deleting one in use asks where its posts or tasks go; import replaces a set from a template or another space, moving
+  work to the same name or else the same category.
+- Create menu (tab bar): Content, Task, Note, or Generate with AI; in a project they're created in it.
+- Not yet: the Space and Members settings tabs, a searchable status picker (the native one is grouped by category).
+
 ### Tasks (Board and Table "Tasks" toggle, task panel, PRD 6.8, TK-01 to TK-04, ST-03)
 
 - A task belongs to a post, a project or the space, with title, status, assignee, due date, priority (Low, Medium, High,
@@ -371,7 +389,7 @@ drizzle/                  SQL migrations
 
 ## Next milestones
 
-1. Status management (ST-01 to ST-06), project pages (PJ-01 to PJ-05) and the Create menu (UI2-04).
+1. Space settings (SP-01, SP-03, SP-05, SP-06): create, archive and delete spaces, the Space and Members tabs.
 2. AI tagging of imported posts, cloud storage driver (R2 or S3).
 3. AI: workflows and runs (AI-15, AI-16), competitor and trend intelligence with web sources (6.17), memories (AI-11).
 4. Billing with Razorpay and Stripe, plan picker at the end of the trial, seat limits (TM-04).

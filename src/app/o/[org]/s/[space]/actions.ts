@@ -6,13 +6,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { withOrg } from "@/db";
-import { comments, contentItems, placements, shareLinkItems, shareLinks, statuses } from "@/db/schema";
+import { comments, contentItems, placements, projects, shareLinkItems, shareLinks, statuses } from "@/db/schema";
 import { PLACEMENTS } from "@/lib/placements";
 import { logActivity } from "@/server/activity";
 import { returnToReviewIfApproved } from "@/server/approval";
 import { requireSpaceAction } from "@/server/tenancy";
 import { assignableMembers } from "@/server/table";
 import { mergeCaptions, setPlatformCaption, splitCaptions } from "@/server/captions";
+import { createNote } from "@/server/notes";
+import { createTask } from "@/server/tasks";
 import { deliver } from "@/notifications/deliver";
 import { assigneesOf, mentionedIn, postFollowers, postHref } from "@/notifications/content";
 
@@ -59,8 +61,17 @@ export async function moveContent(org: string, space: string, contentId: string,
 }
 
 export async function createContent(org: string, space: string, statusId: string) {
+  return createContentIn(org, space, null, statusId);
+}
+
+/** "+ Create content" in a column; in a project's views (PJ-02) the post joins that project. */
+export async function createContentIn(org: string, space: string, projectId: string | null, statusId: string) {
   const ctx = await requireSpaceAction(org, space, "content.edit");
   const id = await withOrg(ctx.org.id, async (tx) => {
+    if (projectId) {
+      const [p] = await tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, uuid.parse(projectId)), eq(projects.spaceId, ctx.space.id)));
+      if (!p) throw new Error("That project isn’t in this space.");
+    }
     const [target] = await tx
       .select()
       .from(statuses)
@@ -77,6 +88,7 @@ export async function createContent(org: string, space: string, statusId: string
         spaceId: ctx.space.id,
         title: "Untitled post",
         statusId: target.id,
+        projectId,
         position: (top ?? 0) + 1,
         createdBy: ctx.user.id,
         autopost: ctx.space.autopostNewContent,
@@ -92,7 +104,7 @@ export async function createContent(org: string, space: string, statusId: string
     return item.id;
   });
   revalidatePath(spacePath(org, space), "layout");
-  redirect(`${spacePath(org, space)}/board?content=${id}`);
+  redirect(`${spacePath(org, space)}${projectId ? `/p/${projectId}` : ""}/board?content=${id}`);
 }
 
 const EDITABLE = z.enum(["title", "caption", "hashtags", "firstComment"]);
@@ -248,4 +260,40 @@ export async function keepOneCaption(org: string, space: string, contentId: stri
   const ctx = await requireSpaceAction(org, space, "content.edit");
   await mergeCaptions(ctx, uuid.parse(contentId), platformSchema.parse(keep));
   revalidatePath(spacePath(org, space), "layout");
+}
+
+/* ---------- Create menu (UI2-04) ---------- */
+
+/** Content, Task or Note from the tab bar, in the current project when there is one; opens what it made. */
+export async function quickCreate(org: string, space: string, projectId: string | null, kind: string) {
+  const what = z.enum(["content", "task", "note"]).parse(kind);
+  const ctx = await requireSpaceAction(org, space, "content.edit");
+  const project = projectId ? uuid.parse(projectId) : null;
+  if (project) {
+    const [p] = await withOrg(ctx.org.id, (tx) => tx.select({ id: projects.id }).from(projects).where(and(eq(projects.id, project), eq(projects.spaceId, ctx.space.id))));
+    if (!p) throw new Error("That project isn’t in this space.");
+  }
+  const root = `${spacePath(org, space)}${project ? `/p/${project}` : ""}`;
+  if (what === "content") {
+    const [first] = await withOrg(ctx.org.id, (tx) =>
+      tx
+        .select({ id: statuses.id })
+        .from(statuses)
+        .where(and(eq(statuses.spaceId, ctx.space.id), eq(statuses.appliesTo, "content"), eq(statuses.category, "not_started")))
+        .orderBy(asc(statuses.position))
+        .limit(1),
+    );
+    if (!first) throw new Error("This space has no Not started status. Add one in Statuses.");
+    return createContentIn(org, space, project, first.id);
+  }
+  let href: string;
+  if (what === "task") {
+    const task = await createTask(ctx, { title: "New task", projectId: project });
+    href = `${root}/board?view=tasks&task=${task.id}`;
+  } else {
+    const note = await createNote(ctx, project, "blank");
+    href = `${root}/notes?note=${note}`;
+  }
+  revalidatePath(spacePath(org, space), "layout");
+  redirect(href);
 }

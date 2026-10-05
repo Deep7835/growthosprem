@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { withOrg } from "@/db";
 import { mediaForContent } from "@/db/media";
 import { contentAssignees, contentItems, placements, spaces, statuses, tasks, users } from "@/db/schema";
@@ -70,7 +70,7 @@ const local = (at: Date, timeZone: string) => {
 export async function loadCalendar(
   ctx: { orgId: string; userId: string },
   spaceList: Space[],
-  opts: { view: CalendarView; anchor: LocalDate; weekStart: WeekStart; timeZone: string; filters: CalendarFilters },
+  opts: { view: CalendarView; anchor: LocalDate; weekStart: WeekStart; timeZone: string; filters: CalendarFilters; projectId?: string | null },
 ) {
   const days = visibleDays(opts.view, opts.anchor, opts.weekStart);
   const from = zonedToUtc(days[0].year, days[0].month, days[0].day, 0, 0, opts.timeZone);
@@ -83,6 +83,12 @@ export async function loadCalendar(
 
   return withOrg(ctx.orgId, async (tx) => {
     const wantContent = f.type !== "tasks";
+    // PJ-02: a project's calendar shows only its posts and their tasks.
+    const projectId = opts.projectId ?? null;
+    const inProject = projectId ? eq(contentItems.projectId, projectId) : undefined;
+    const taskInProject = projectId
+      ? or(eq(tasks.projectId, projectId), inArray(tasks.contentItemId, sql`(select ${contentItems.id} from ${contentItems} where ${contentItems.projectId} = ${projectId})`))
+      : undefined;
     const wantTasks = f.type !== "content" && f.state === "any" && !f.autopost && f.category === "any";
 
     const [scheduled, unscheduledRows, taskRows] = await Promise.all([
@@ -91,7 +97,7 @@ export async function loadCalendar(
             .select({ item: contentItems, status: statuses })
             .from(contentItems)
             .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-            .where(and(inArray(contentItems.spaceId, ids), gte(contentItems.scheduledAt, from), lt(contentItems.scheduledAt, to), isNull(contentItems.archivedAt)))
+            .where(and(inArray(contentItems.spaceId, ids), gte(contentItems.scheduledAt, from), lt(contentItems.scheduledAt, to), isNull(contentItems.archivedAt), inProject))
             .orderBy(asc(contentItems.scheduledAt))
         : [],
       wantContent
@@ -99,7 +105,7 @@ export async function loadCalendar(
             .select({ item: contentItems, status: statuses })
             .from(contentItems)
             .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-            .where(and(inArray(contentItems.spaceId, ids), isNull(contentItems.scheduledAt), isNull(contentItems.archivedAt)))
+            .where(and(inArray(contentItems.spaceId, ids), isNull(contentItems.scheduledAt), isNull(contentItems.archivedAt), inProject))
             .orderBy(asc(contentItems.position))
             .limit(50)
         : [],
@@ -107,7 +113,7 @@ export async function loadCalendar(
         ? tx
             .select()
             .from(tasks)
-            .where(and(inArray(tasks.spaceId, ids), gte(tasks.dueAt, from), lt(tasks.dueAt, to)))
+            .where(and(inArray(tasks.spaceId, ids), gte(tasks.dueAt, from), lt(tasks.dueAt, to), taskInProject))
             .orderBy(asc(tasks.dueAt))
         : [],
     ]);

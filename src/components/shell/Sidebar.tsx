@@ -7,6 +7,8 @@ export interface SidebarSpace {
   slug: string;
   name: string;
   avatarColor: string;
+  /** Open projects, shown under the space while you're in it (UI-08). */
+  projects?: { id: string; name: string; color: string | null }[];
 }
 
 function NavLink({ href, active, children, inset = false }: { href: string; active: boolean; children: React.ReactNode; inset?: boolean }) {
@@ -69,7 +71,7 @@ export function Sidebar({
         const inSpace = pathname.startsWith(spaceBase);
         return (
           <div key={sp.slug} className="flex flex-col gap-0.5">
-            <NavLink href={`${spaceBase}/board`} active={inSpace && !/\/(analytics|audit)/.test(pathname.slice(spaceBase.length))}>
+            <NavLink href={`${spaceBase}/board`} active={inSpace && !/^\/(analytics|audit|p\/)/.test(pathname.slice(spaceBase.length))}>
               <span
                 className="grid size-[22px] place-items-center rounded-md text-xs font-bold text-ink"
                 style={{ background: sp.avatarColor }}
@@ -86,6 +88,12 @@ export function Sidebar({
                 <NavLink href={`${spaceBase}/analytics`} active={pathname.startsWith(`${spaceBase}/analytics`)} inset>
                   Analytics
                 </NavLink>
+                {(sp.projects ?? []).map((p) => (
+                  <NavLink key={p.id} href={`${spaceBase}/p/${p.id}/board`} active={pathname.startsWith(`${spaceBase}/p/${p.id}`)} inset>
+                    <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: p.color ?? "#9CA3AF" }} />
+                    <span className="truncate">{p.name}</span>
+                  </NavLink>
+                ))}
               </>
             )}
           </div>

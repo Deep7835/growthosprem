@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNull, max } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, max, or, sql } from "drizzle-orm";
 import { withOrg, type Tx } from "@/db";
 import { contentItems, placements, projects, statuses, taskComments, tasks, users } from "@/db/schema";
 import { PLACEMENTS, type PlacementKind, type Platform } from "@/lib/placements";
@@ -47,11 +47,15 @@ async function taskIn(tx: Tx, ctx: SpaceContext, id: string) {
   return task;
 }
 
-/** Board and Table (TK-02): every task in the space with what the cards show. */
+/** A project's tasks: on the project itself or on one of its posts. */
+const inProject = (projectId: string) =>
+  or(eq(tasks.projectId, projectId), inArray(tasks.contentItemId, sql`(select ${contentItems.id} from ${contentItems} where ${contentItems.projectId} = ${projectId})`));
+
+/** Board and Table (TK-02): every task in the space (or project) with what the cards show. */
 export async function listTasks(ctx: SpaceContext) {
   return withOrg(ctx.org.id, async (tx) => {
     const [rows, statusList, members, projectList] = await Promise.all([
-      tx.select().from(tasks).where(eq(tasks.spaceId, ctx.space.id)).orderBy(asc(tasks.position), asc(tasks.createdAt)),
+      tx.select().from(tasks).where(and(eq(tasks.spaceId, ctx.space.id), ctx.project ? inProject(ctx.project.id) : undefined)).orderBy(asc(tasks.position), asc(tasks.createdAt)),
       taskStatuses(tx, ctx.space.id),
       assignableMembers(tx, ctx),
       tx.select({ id: projects.id, name: projects.name }).from(projects).where(and(eq(projects.spaceId, ctx.space.id), isNull(projects.archivedAt))),

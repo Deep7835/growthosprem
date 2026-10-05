@@ -42,12 +42,12 @@ export async function loadContentStatuses(tx: Tx, spaceId: string) {
     .orderBy(asc(statuses.position));
 }
 
-async function loadCards(tx: Tx, spaceId: string): Promise<CardItem[]> {
+async function loadCards(tx: Tx, spaceId: string, projectId: string | null = null): Promise<CardItem[]> {
   const items = await tx
     .select({ item: contentItems, projectName: projects.name })
     .from(contentItems)
     .leftJoin(projects, eq(projects.id, contentItems.projectId))
-    .where(and(eq(contentItems.spaceId, spaceId), isNull(contentItems.archivedAt)))
+    .where(and(eq(contentItems.spaceId, spaceId), isNull(contentItems.archivedAt), projectId ? eq(contentItems.projectId, projectId) : undefined))
     .orderBy(asc(contentItems.position), asc(contentItems.createdAt));
   const ids = items.map((r) => r.item.id);
   if (ids.length === 0) return [];
@@ -84,7 +84,7 @@ async function loadCards(tx: Tx, spaceId: string): Promise<CardItem[]> {
 
 export async function getSpaceContent(ctx: SpaceContext) {
   return withOrg(ctx.org.id, async (tx) => {
-    const [statusList, cards] = await Promise.all([loadContentStatuses(tx, ctx.space.id), loadCards(tx, ctx.space.id)]);
+    const [statusList, cards] = await Promise.all([loadContentStatuses(tx, ctx.space.id), loadCards(tx, ctx.space.id, ctx.project?.id ?? null)]);
     return { statuses: statusList, cards };
   });
 }

@@ -3,7 +3,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { getSystemDb, withOrg } from "@/db";
-import { memberships, organizations, spaceMembers, spaces } from "@/db/schema";
+import { memberships, organizations, projects, spaceMembers, spaces } from "@/db/schema";
 import { can, canSeeSpace, type Action } from "@/lib/permissions";
 import { getSessionUser } from "./session";
 
@@ -81,7 +81,14 @@ const resolveSpace = cache(async (orgSlug: string, spaceSlug: string) => {
   const scope = { isSpaceMember: result.isSpaceMember, editorsCanSchedule: result.space.editorsCanSchedule };
   return {
     ok: true,
-    value: { ...ctx, space: result.space, scope, can: (action: Action) => can(ctx.role, action, scope) },
+    value: {
+      ...ctx,
+      space: result.space,
+      // Set on project pages (PJ-02): views then show only that project's work.
+      project: null as Project | null,
+      scope,
+      can: (action: Action) => can(ctx.role, action, scope),
+    },
   } as const;
 });
 
@@ -96,6 +103,16 @@ export async function spaceContextForRoute(orgSlug: string, spaceSlug: string, a
 }
 
 export type SpaceContext = Awaited<ReturnType<typeof getSpaceContext>>;
+type Project = typeof projects.$inferSelect;
+
+/** A project page's context: the space's, with the project set. Archived projects still open (read as history). */
+export const getProjectContext = cache(async (orgSlug: string, spaceSlug: string, projectId: string): Promise<SpaceContext> => {
+  const ctx = await getSpaceContext(orgSlug, spaceSlug);
+  if (!/^[0-9a-f-]{36}$/.test(projectId)) notFound();
+  const [project] = await withOrg(ctx.org.id, (tx) => tx.select().from(projects).where(and(eq(projects.id, projectId), eq(projects.spaceId, ctx.space.id))));
+  if (!project) notFound();
+  return { ...ctx, project };
+});
 
 /** For server actions: the space context, or an error if the user may not do `action`. */
 export async function requireSpaceAction(orgSlug: string, spaceSlug: string, action: Action) {

@@ -46,8 +46,11 @@ export function ContentPanel({
   requestTime,
   closeHref,
   postTasks,
+  statusesHref = null,
 }: {
   detail: ContentDetail;
+  /** ST-06: shortcut to status management, for people who can change it. */
+  statusesHref?: string | null;
   postTasks: PostTasksData | null;
   org: string;
   space: string;
@@ -132,6 +135,11 @@ export function ContentPanel({
                 move={moveContent.bind(null, org, space, item.id)}
               />
               <PublishState state={item.publishState} />
+              {statusesHref && (
+                <Link href={statusesHref} className="text-xs font-semibold text-muted hover:text-ink">
+                  Manage statuses
+                </Link>
+              )}
             </dd>
             <dt className="text-muted">Assignees</dt>
             <dd>{detail.assignees.length ? <AvatarStack people={detail.assignees} /> : <span className="text-muted">Unassigned</span>}</dd>

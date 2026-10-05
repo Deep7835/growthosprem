@@ -47,7 +47,11 @@ export async function assignableMembers(tx: Tx, ctx: SpaceContext) {
 export async function loadTable(ctx: SpaceContext) {
   return withOrg(ctx.org.id, async (tx) => {
     const [items, statusList, projectList, members] = await Promise.all([
-      tx.select().from(contentItems).where(eq(contentItems.spaceId, ctx.space.id)).orderBy(asc(contentItems.position), asc(contentItems.createdAt)),
+      tx
+        .select()
+        .from(contentItems)
+        .where(and(eq(contentItems.spaceId, ctx.space.id), ctx.project ? eq(contentItems.projectId, ctx.project.id) : undefined))
+        .orderBy(asc(contentItems.position), asc(contentItems.createdAt)),
       tx.select().from(statuses).where(and(eq(statuses.spaceId, ctx.space.id), eq(statuses.appliesTo, "content"))).orderBy(asc(statuses.position)),
       tx.select().from(projects).where(and(eq(projects.spaceId, ctx.space.id), isNull(projects.archivedAt))).orderBy(asc(projects.name)),
       assignableMembers(tx, ctx),

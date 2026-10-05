@@ -92,13 +92,16 @@ export async function seed(db: Db): Promise<void> {
       ])
       .returning();
 
-    const [diwali] = await tx
+    const cafeProjects = await tx
       .insert(s.projects)
       .values([
-        { orgId: org.id, spaceId: cafe.id, name: "Diwali 2026", goal: "Sell out the Diwali sweets box", startsOn: "2026-10-26", endsOn: "2026-11-08" },
-        { orgId: org.id, spaceId: cafe.id, name: "Menu launch" },
+        { orgId: org.id, spaceId: cafe.id, name: "Diwali 2026", goal: "Sell out the Diwali sweets box", startsOn: "2026-10-26", endsOn: "2026-11-08", color: "#eb6834" },
+        { orgId: org.id, spaceId: cafe.id, name: "Menu launch", color: "#1baf7a" },
       ])
       .returning();
+    const [diwali] = cafeProjects;
+    // PJ-01: each project starts with its own media folder.
+    await tx.insert(s.mediaFolders).values(cafeProjects.map((p) => ({ orgId: org.id, spaceId: cafe.id, name: p.name, projectId: p.id })));
 
     type Kind = (typeof s.placementKind.enumValues)[number];
     const items: {

@@ -1,3 +1,6 @@
+import { and, asc, inArray, isNull } from "drizzle-orm";
+import { withOrg } from "@/db";
+import { projects } from "@/db/schema";
 import { NotificationBell } from "@/components/shell/NotificationBell";
 import { ago, typeOf } from "@/lib/notifications";
 import { bellData } from "@/server/notifications";
@@ -16,6 +19,15 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/o/[o
   ]);
 
   const { recent, unread } = await bellData(ctx);
+  const openProjects = spaces.length
+    ? await withOrg(ctx.org.id, (tx) =>
+        tx
+          .select({ id: projects.id, name: projects.name, color: projects.color, spaceId: projects.spaceId })
+          .from(projects)
+          .where(and(inArray(projects.spaceId, spaces.map((s) => s.id)), isNull(projects.archivedAt)))
+          .orderBy(asc(projects.name)),
+      )
+    : [];
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -38,7 +50,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/o/[o
         <Sidebar
           orgSlug={orgSlug}
           orgName={ctx.org.name}
-          spaces={spaces.map((s) => ({ slug: s.slug, name: s.name, avatarColor: s.avatarColor }))}
+          spaces={spaces.map((s) => ({ slug: s.slug, name: s.name, avatarColor: s.avatarColor, projects: openProjects.filter((p) => p.spaceId === s.id) }))}
           canInvite={ctx.role !== "editor"}
           unread={unread}
         />

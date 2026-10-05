@@ -15,7 +15,7 @@ export async function listNotes(ctx: SpaceContext) {
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(users, eq(users.id, notes.updatedBy))
-      .where(eq(notes.spaceId, ctx.space.id))
+      .where(and(eq(notes.spaceId, ctx.space.id), ctx.project ? eq(notes.projectId, ctx.project.id) : undefined))
       .orderBy(desc(notes.pinned), desc(notes.updatedAt));
     return rows.map(({ note, projectName, editor }) => ({
       id: note.id,

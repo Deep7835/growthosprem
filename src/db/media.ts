@@ -1,18 +1,13 @@
 // Media library data (PRD 6.12, CT-02). Free of Next.js imports so it can be tested.
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { withOrg, type Db, type Tx } from "./core";
 import * as s from "./schema";
 
-/** Brand assets plus one folder per project, created once (MD-01, MD-04). */
+/** The Brand assets folder, created once (MD-04). Project folders are made with the project when chosen (PJ-01). */
 export async function ensureDefaultFolders(tx: Tx, orgId: string, spaceId: string) {
   const folders = await tx.select().from(s.mediaFolders).where(eq(s.mediaFolders.spaceId, spaceId));
   if (!folders.some((f) => f.isBrandAssets)) {
     await tx.insert(s.mediaFolders).values({ orgId, spaceId, name: "Brand assets", isBrandAssets: true });
-  }
-  const projects = await tx.select().from(s.projects).where(and(eq(s.projects.spaceId, spaceId), isNull(s.projects.archivedAt)));
-  const missing = projects.filter((p) => !folders.some((f) => f.projectId === p.id));
-  if (missing.length) {
-    await tx.insert(s.mediaFolders).values(missing.map((p) => ({ orgId, spaceId, name: p.name, projectId: p.id })));
   }
 }
 

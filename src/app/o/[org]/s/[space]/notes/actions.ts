@@ -14,15 +14,24 @@ export async function newNote(org: string, space: string, projectId: string | nu
   const ctx = await requireSpaceAction(org, space, "content.edit");
   const kind = (Object.keys(NOTE_TEMPLATES) as NoteTemplate[]).includes(template as NoteTemplate) ? (template as NoteTemplate) : "blank";
   const note = await createNote(ctx, projectId ? id.parse(projectId) : null, kind);
-  revalidatePath(page(org, space));
+  revalidatePath(`/o/${org}/s/${space}`, "layout");
   redirect(`${page(org, space)}?note=${note}`);
+}
+
+/** PJ-02: a note made in a project's Notes view belongs to that project and opens there. */
+export async function newProjectNote(org: string, space: string, projectId: string, _chosen: string | null, template: string = "blank") {
+  const ctx = await requireSpaceAction(org, space, "content.edit");
+  const kind = (Object.keys(NOTE_TEMPLATES) as NoteTemplate[]).includes(template as NoteTemplate) ? (template as NoteTemplate) : "blank";
+  const note = await createNote(ctx, id.parse(projectId), kind);
+  revalidatePath(`/o/${org}/s/${space}`, "layout");
+  redirect(`/o/${org}/s/${space}/p/${projectId}/notes?note=${note}`);
 }
 
 export async function save(org: string, space: string, noteId: string, input: { title?: string; content?: unknown; projectId?: string | null }) {
   try {
     const ctx = await requireSpaceAction(org, space, "content.edit");
     const result = await saveNote(ctx, id.parse(noteId), input, `${page(org, space)}?note=${noteId}`);
-    revalidatePath(page(org, space));
+    revalidatePath(`/o/${org}/s/${space}`, "layout");
     return { ok: true as const, ...result };
   } catch (e) {
     return { ok: false as const, error: e instanceof Error ? e.message : "Couldn’t save." };
@@ -32,12 +41,12 @@ export async function save(org: string, space: string, noteId: string, input: { 
 export async function pin(org: string, space: string, noteId: string, pinned: boolean) {
   const ctx = await requireSpaceAction(org, space, "content.edit");
   await setPinned(ctx, id.parse(noteId), pinned);
-  revalidatePath(page(org, space));
+  revalidatePath(`/o/${org}/s/${space}`, "layout");
 }
 
 export async function remove(org: string, space: string, noteId: string) {
   const ctx = await requireSpaceAction(org, space, "content.edit");
   await deleteNote(ctx, id.parse(noteId));
-  revalidatePath(page(org, space));
+  revalidatePath(`/o/${org}/s/${space}`, "layout");
   redirect(page(org, space));
 }

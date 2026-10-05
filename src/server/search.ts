@@ -138,7 +138,7 @@ export async function searchOrg(ctx: OrgContext, orgSlug: string, visible: Visib
         space: space(p.spaceId),
         at: p.createdAt.toISOString(),
         platforms: [],
-        href: `${base(p.spaceId)}/table?project=${p.id}`,
+        href: `${base(p.spaceId)}/p/${p.id}/board`,
       })),
       ...spaceHits.map((s) => ({ type: "space" as const, id: s.id, title: s.name, snippet: null, space: null, at: null, platforms: [], href: `${base(s.id)}/board` })),
       ...noteRows.map((n) => ({

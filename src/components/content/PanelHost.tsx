@@ -25,6 +25,7 @@ export async function PanelHost({ ctx, org, space, contentId, closeHref }: { ctx
       requestTime={ctx.requestTime}
       closeHref={closeHref}
       postTasks={postTasks}
+      statusesHref={ctx.can("space.settings") ? `/o/${org}/s/${space}/settings/statuses` : null}
     />
   );
 }

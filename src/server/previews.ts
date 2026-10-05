@@ -81,7 +81,7 @@ export async function loadSpacePreviews(ctx: SpaceContext, opts: { org: string; 
       .select({ item: contentItems, status: statuses })
       .from(contentItems)
       .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-      .where(and(eq(contentItems.spaceId, ctx.space.id), rangeFilter, isNull(contentItems.archivedAt)))
+      .where(and(eq(contentItems.spaceId, ctx.space.id), rangeFilter, isNull(contentItems.archivedAt), ctx.project ? eq(contentItems.projectId, ctx.project.id) : undefined))
       .orderBy(asc(contentItems.scheduledAt), asc(contentItems.position))
       .limit(120);
     const ids = rows.map((r) => r.item.id);

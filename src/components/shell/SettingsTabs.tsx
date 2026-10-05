@@ -8,9 +8,9 @@ const TABS = [
   ["Space", null],
   ["Accounts", "settings/accounts"],
   ["Autopost", "settings/autopost"],
-  ["Projects", null],
+  ["Projects", "settings/projects"],
   ["Members", null],
-  ["Statuses", null],
+  ["Statuses", "settings/statuses"],
   ["Brand Brain", "brand"],
 ] as const;
 
