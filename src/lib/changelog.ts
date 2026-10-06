@@ -14,6 +14,13 @@ export interface Change {
 
 export const CHANGELOG: Change[] = [
   {
+    id: "2026-10-06-calendar-feed",
+    date: "2026-10-06",
+    tags: ["new"],
+    title: "Your content calendar in Google Calendar",
+    body: "Settings › Integrations gives you a private calendar link with every planned post, and tasks due if you like, across your spaces. Subscribe in Google Calendar, Outlook or Apple Calendar. Notes also gain team comments, print and duplicate, support tickets take screenshots, and Autopost has an Instagram first comment default.",
+  },
+  {
     id: "2026-10-06-analytics-support",
     date: "2026-10-06",
     tags: ["new", "improved"],

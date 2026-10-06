@@ -886,6 +886,24 @@ export const spaceMoments = pgTable(
 export const billingProvider = pgEnum("billing_provider", ["sample", "razorpay", "stripe"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "past_due", "canceled"]);
 
+/**
+ * Settings › Integrations › Calendar feed: a private iCalendar link per person, for Google Calendar,
+ * Outlook or Apple Calendar. Only the hash of the token is kept.
+ */
+export const calendarFeeds = pgTable(
+  "calendar_feeds",
+  {
+    id: id(),
+    orgId: orgId(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    includeTasks: boolean("include_tasks").notNull().default(true),
+    lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("calendar_feeds_token").on(t.tokenHash), uniqueIndex("calendar_feeds_user").on(t.orgId, t.userId)],
+);
+
 /** Team comments on a note (never shown outside the team). */
 export const noteComments = pgTable(
   "note_comments",

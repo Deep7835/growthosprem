@@ -267,6 +267,20 @@
       "when": 1791304504285,
       "tag": "0037_rls_note_comments",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791305632528,
+      "tag": "0038_calendar_feeds",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1791305672873,
+      "tag": "0039_rls_calendar_feeds",
+      "breakpoints": true
     }
   ]
 }

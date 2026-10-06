@@ -42,6 +42,7 @@ export function SettingsFrame({
   const profile: Item[] = [
     { href: `${base}/settings/profile`, label: "Profile", icon: "users" },
     { href: `${base}/settings/notifications`, label: "Notifications", icon: "bell" },
+    { href: `${base}/settings/integrations`, label: "Integrations", icon: "link" },
   ];
   const org: Item[] = [
     { href: `${base}/settings/general`, label: "General", icon: "home" },

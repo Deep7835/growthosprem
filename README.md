@@ -342,7 +342,12 @@ drizzle/                  SQL migrations
 - Autopost › Platform defaults (`spaces.post_defaults`): an Instagram first comment for new posts (Plotline posts it
   after publishing, not on Stories) and whether new Reels are shared to the main feed. Facebook and LinkedIn have none,
   since Plotline doesn't send titles or visibility to them.
-- Not yet: integrations (Google Calendar, Drive, Canva; phase 6), workflow usage (no workflows yet).
+- Integrations (Profile › Integrations): a private calendar feed (`/api/calendar/<token>.ics`, iCalendar) with the
+  posts planned, and optionally the tasks due, in every space the person can see, for Google Calendar, Outlook or Apple
+  Calendar. Only the token's hash is stored (`calendar_feeds`); the link is shown once, "Make a new link" replaces it
+  and access is checked on every fetch. Google Drive, Canva and AI-assistant connections are listed as not available
+  yet; social accounts are managed in each space.
+- Not yet: Google Drive and Canva (they need OAuth apps), workflow usage (no workflows yet).
 
 ### Search palette (top bar, Ctrl/⌘ K or Ctrl/⌘ /, PRD SR-01 to SR-03)
 
