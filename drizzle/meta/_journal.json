@@ -281,6 +281,20 @@
       "when": 1791305672873,
       "tag": "0039_rls_calendar_feeds",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791306484484,
+      "tag": "0040_ai_prompts_personas_workflows",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791306489157,
+      "tag": "0041_rls_ai_workflows",
+      "breakpoints": true
     }
   ]
 }

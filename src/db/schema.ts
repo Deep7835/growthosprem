@@ -886,6 +886,85 @@ export const spaceMoments = pgTable(
 export const billingProvider = pgEnum("billing_provider", ["sample", "razorpay", "stripe"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "past_due", "canceled"]);
 
+/** AI › Prompts: prompts a person saved to reuse with the AI Copilot. */
+export const aiPrompts = pgTable(
+  "ai_prompts",
+  {
+    id: id(),
+    orgId: orgId(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_prompts_user").on(t.orgId, t.userId)],
+);
+
+/** AI › Persona: how this person writes and works, given to the Copilot in their conversations. */
+export const aiPersonas = pgTable(
+  "ai_personas",
+  {
+    id: id(),
+    orgId: orgId(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default(""),
+    about: text("about").notNull().default(""),
+    voice: text("voice").notNull().default(""),
+    avoid: text("avoid").notNull().default(""),
+    website: text("website").notNull().default(""),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("ai_personas_user").on(t.orgId, t.userId)],
+);
+
+export const workflowKind = pgEnum("workflow_kind", ["ideas", "analytics", "overdue", "unscheduled", "festivals", "custom"]);
+export const workflowCadence = pgEnum("workflow_cadence", ["daily", "weekly", "monthly"]);
+export const workflowRunStatus = pgEnum("workflow_run_status", ["queued", "running", "completed", "failed"]);
+
+/** AI › Workflows: a recurring job for a space (or the whole organisation), run by the worker. */
+export const aiWorkflows = pgTable(
+  "ai_workflows",
+  {
+    id: id(),
+    orgId: orgId(),
+    spaceId: uuid("space_id").references(() => spaces.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    kind: workflowKind("kind").notNull(),
+    name: text("name").notNull(),
+    // Custom workflows: what to ask.
+    prompt: text("prompt").notNull().default(""),
+    cadence: workflowCadence("cadence").notNull().default("weekly"),
+    // Weekly: 0 = Monday … 6 = Sunday. Monthly runs on the 1st.
+    weekday: integer("weekday").notNull().default(0),
+    // Local hour in the space's (or organisation's) time zone.
+    hour: integer("hour").notNull().default(9),
+    enabled: boolean("enabled").notNull().default(true),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ai_workflows_due").on(t.enabled, t.nextRunAt)],
+);
+
+export const aiWorkflowRuns = pgTable(
+  "ai_workflow_runs",
+  {
+    id: id(),
+    orgId: orgId(),
+    workflowId: uuid("workflow_id").notNull().references(() => aiWorkflows.id, { onDelete: "cascade" }),
+    status: workflowRunStatus("status").notNull().default("queued"),
+    // Why it ran: on schedule or "Run now".
+    trigger: text("trigger").$type<"schedule" | "manual">().notNull().default("schedule"),
+    output: text("output").notNull().default(""),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ai_workflow_runs_workflow").on(t.workflowId, t.createdAt)],
+);
+
 /**
  * Settings › Integrations › Calendar feed: a private iCalendar link per person, for Google Calendar,
  * Outlook or Apple Calendar. Only the hash of the token is kept.

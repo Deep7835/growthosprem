@@ -107,13 +107,13 @@ How you work:
 - Be brief and plain: short paragraphs or short lists, no headings unless asked. If a request is ambiguous, ask one short question instead of guessing.
 - You see only what this person can see. You never publish, delete or message clients.`;
 
-export function copilotSystem(context: { orgName: string; userName: string; role: string; space: { name: string; slug: string } | null; today: string }) {
+export function copilotSystem(context: { orgName: string; userName: string; role: string; space: { name: string; slug: string } | null; today: string; persona?: string }) {
   const scope = context.space
     ? `This conversation is about the ${context.space.name} space (slug: ${context.space.slug}); leave the space parameter out of tool calls.`
     : "This conversation covers the whole organisation; call list_spaces to see the spaces and pass the space slug to other tools.";
   return [
     { type: "text" as const, text: STABLE_SYSTEM, cache_control: { type: "ephemeral" as const } },
-    { type: "text" as const, text: `Organisation: ${context.orgName}. You're working with ${context.userName} (${context.role}). ${scope} Today is ${context.today}.` },
+    { type: "text" as const, text: `Organisation: ${context.orgName}. You're working with ${context.userName} (${context.role}). ${scope} Today is ${context.today}.${context.persona ? `\n\n${context.persona}` : ""}` },
   ];
 }
 

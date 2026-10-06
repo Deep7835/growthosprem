@@ -560,6 +560,19 @@ drizzle/                  SQL migrations
   in AI settings.
 - Models (`src/lib/ai/config.ts`): `claude-opus-5-5` for the Copilot and Brand Brain; `claude-sonnet-5-5` for inline caption
   help (the PRD's cheaper model for high-volume writing). Server-side refusal fallback is on. Set `ANTHROPIC_API_KEY`.
+- AI navigation: Prompts, Workflows, Runs and Your persona, above the conversations.
+- Prompt library (`/o/[org]/ai/prompts`): built-in prompts grouped by Planning, Writing, Analysis and Across clients,
+  and your own saved prompts (`ai_prompts`); Use opens a chat with the prompt filled in.
+- Your persona (`/o/[org]/ai/persona`, `ai_personas`): your role, how you work, how you write and what to avoid, added to
+  the Copilot's system prompt in your conversations only (after the cached part, so caching still works). A prompt
+  to copy into Claude or ChatGPT helps write it.
+- Workflows (`/o/[org]/ai/workflows`, `src/ai/workflows.ts`): recurring jobs run by the job worker every minute when due,
+  daily, weekly on a chosen day or monthly on the 1st, at a local hour. Templates: Weekly content ideas (AI, adds ideas
+  to the Idea Bank), Festival planner (festivals in the next 45 days, ideas with AI), Weekly analytics digest (numbers,
+  plus a short AI read when AI is set up), Overdue task digest and Unscheduled content check (no AI), and Custom (your
+  prompt, answered from the space's Brand Brain, results and plan). Run now, pause and delete; the person who made it
+  is notified with a link to the run. AI use counts against the monthly budget and stops when the plan is locked.
+- Runs (`/o/[org]/ai/runs`): every run with its status (filter by Queued, Running, Completed, Failed), output and error.
 
 ### Milestone 0
 

@@ -11,6 +11,7 @@ import { NOTIFY_JOB, notificationChores, sendDigest } from "@/notifications/work
 import { purgeDeletedSpaces } from "@/spaces/purge";
 import { renewDue } from "@/billing/core";
 import { runTagJob, scheduleTagging, TAG_JOB } from "@/ai/tagging";
+import { runWorkflowJob, scheduleWorkflows, WORKFLOW_JOB } from "@/ai/workflows";
 
 export interface WorkerDeps {
   getDb: () => Promise<Db>;
@@ -30,6 +31,9 @@ export async function runJob(job: Job, db: Db, graph: Graph | null): Promise<voi
       return sendDigest(db, payload as { orgId: string; userId: string; date: string });
     case TAG_JOB:
       await runTagJob(db, payload as { spaceId: string });
+      return;
+    case WORKFLOW_JOB:
+      await runWorkflowJob(db, payload as { runId: string; orgId: string });
       return;
   }
   if (!graph) throw new Error("Instagram and Facebook are not set up (META_APP_ID).");
@@ -99,6 +103,7 @@ export function startWorker(deps: WorkerDeps, opts: { pollMs?: number; scheduleM
           await purgeDeletedSpaces(db);
           await renewDue(db);
           await scheduleTagging(db);
+          await scheduleWorkflows(db);
         }
         const ran = await drain(deps, id, 20);
         if (ran > 0) continue;

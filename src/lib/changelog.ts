@@ -14,6 +14,13 @@ export interface Change {
 
 export const CHANGELOG: Change[] = [
   {
+    id: "2026-10-06-ai-tools",
+    date: "2026-10-06",
+    tags: ["new"],
+    title: "Workflows, a prompt library and your persona",
+    body: "AI Copilot can now run workflows on a schedule: weekly ideas into the Idea Bank, a festival planner, analytics and overdue-task digests, and your own prompts. Save prompts you use often, and tell the Copilot how you write in Your persona.",
+  },
+  {
     id: "2026-10-06-calendar-feed",
     date: "2026-10-06",
     tags: ["new"],

@@ -8,6 +8,7 @@ import { REASONING } from "@/lib/ai/config";
 import { copilotTurn } from "@/server/ai/loop";
 import { AI_SETUP_MESSAGE, aiErrorMessage, anthropic, cardNotes, copilotSystem, creditsUsedThisMonth, loadHistory, recordUsage } from "@/server/ai/service";
 import { COPILOT_TOOLS, runTool } from "@/server/ai/tools";
+import { getPersona, personaText } from "@/server/ai-tools";
 import { orgContextForRoute, spaceContextForRoute } from "@/server/tenancy";
 
 const Body = z.object({
@@ -68,7 +69,8 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
 
   const tz = space?.timezone ?? ctx.org.timezone;
   const today = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: tz }).format(new Date());
-  const system = copilotSystem({ orgName: ctx.org.name, userName: ctx.user.name, role: ROLE[ctx.role], space, today: `${today} (${tz})` });
+  const persona = personaText(await getPersona(ctx.org.id, ctx.user.id));
+  const system = copilotSystem({ orgName: ctx.org.name, userName: ctx.user.name, role: ROLE[ctx.role], space, today: `${today} (${tz})`, persona });
   const scope = { orgSlug: org, orgId: ctx.org.id, userId: ctx.user.id, conversationId, spaceSlug: space?.slug ?? null };
 
   const encoder = new TextEncoder();

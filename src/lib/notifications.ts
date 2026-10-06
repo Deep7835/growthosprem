@@ -20,7 +20,7 @@ export const TYPES: { id: NotificationType; label: string; hint: string; default
   { id: "review", label: "Client review", hint: "A client approves or asks for changes", defaults: { inApp: true, email: true, push: true } },
   { id: "publishing", label: "Publishing", hint: "A post was published", defaults: { inApp: true, email: false, push: false } },
   { id: "account", label: "Social account", hint: "Access to an account is about to expire", defaults: { inApp: true, email: true, push: true } },
-  { id: "ai", label: "AI Copilot", hint: "Your AI budget is nearly or fully used", defaults: { inApp: true, email: false, push: false } },
+  { id: "ai", label: "AI Copilot", hint: "Your AI budget is nearly or fully used, or a workflow you made has run", defaults: { inApp: true, email: false, push: false } },
   { id: "system", label: "System", hint: "Trial, billing and product notices", defaults: { inApp: true, email: false, push: false } },
 ];
 
@@ -44,6 +44,7 @@ const KIND_TYPE: Record<string, NotificationType> = {
   published: "publishing",
   account_expiring: "account",
   ai_budget: "ai",
+  workflow_run: "ai",
 };
 
 export function typeOf(kind: string): NotificationType {
