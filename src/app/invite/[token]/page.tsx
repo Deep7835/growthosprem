@@ -27,8 +27,8 @@ function Frame({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex min-h-screen flex-col items-center gap-8 bg-ground px-4 py-16">
       <div className="flex items-center gap-2 font-display text-lg font-bold">
-        <span className="grid size-7 place-items-center rounded-lg bg-accent">G</span>
-        Growth OS
+        <span className="grid size-7 place-items-center rounded-lg bg-accent">P</span>
+        Plotline
       </div>
       <div className="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-line bg-surface p-6">{children}</div>
     </main>
@@ -47,7 +47,7 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
         <p className="text-muted">{body}</p>
         {found.state === "accepted" && (
           <Link href="/" className={buttonClass("primary")}>
-            Open Growth OS
+            Open Plotline
           </Link>
         )}
       </Frame>

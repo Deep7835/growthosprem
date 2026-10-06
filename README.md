@@ -1,6 +1,6 @@
-# Growth OS
+# Plotline
 
-AI Social Growth OS (working name): plan, create, approve, publish and grow social media from one workspace.
+Plotline (formerly the working name "AI Social Growth OS"): plan, create, approve, publish and grow social media from one workspace.
 Built from `AI-Social-Growth-OS-PRD-v1.0.pdf`. Requirement IDs in code comments (for example `SH-07`) point to that PRD.
 
 ## Run it
@@ -133,6 +133,31 @@ drizzle/                  SQL migrations
 - Storage is local disk (`.data/uploads`) in development, behind `src/storage/index.ts`. Production needs the S3-compatible
   driver (Cloudflare R2 or S3) added there.
 
+### Public website (`/`)
+
+- Signed-out visitors get the marketing site; signed-in people still go straight to their workspace.
+- Look: a light orange gradient hero with dark text, a floating dark pill navigation, headlines in bold Inter with an italic Instrument
+  Serif second line, translucent product frames, soft grey cards and black pill buttons (the style the owner chose,
+  rebuilt with Plotline's own content).
+- Sections: hero with an animated product scene (a cursor opens a post from the board, the client approves it, a toast
+  drops in); "Built for the days that make or break a month" with five use-case pills that play a scene each (Diwali
+  week, client approval, Hinglish caption, failed post, monthly results); four numbered steps; a chip cloud of
+  features; the AI Copilot; "Each client, kept apart" (roles and security); Made for India; a glass pricing card; FAQ;
+  a closing card and the footer.
+- Pricing reads `src/lib/billing/plans.ts` (plan, monthly or yearly, rupees or dollars), so the site and Billing always
+  agree; while prices are drafts it says they're provisional.
+- Motion: headline words slide up in turn, sections fade and lift in, the feature chips arrive in a wave, step
+  illustrations play when they come into view (accounts connect, the calendar fills, the Approve button pulses, the
+  results line draws), drifting light in the hero and closing card, two marquees of formats and festivals, client
+  spaces orbiting a shield, a pointer-following light on cards, a scroll progress bar and the hero app tilting flat as
+  you scroll (scroll-linked parts only where the browser supports them).
+- Smooth scrolling: only `transform` and `opacity` animate, with no `filter` or `backdrop-filter` blur anywhere; one
+  `MotionLayer` component owns the observers and the pointer listener; animations pause offscreen (`data-live`) and
+  the use cases only advance while visible. CSS only, no extra libraries; everything shows without JavaScript and
+  motion stops for people who ask for reduced motion.
+- Copy describes only what the product does today; illustrations are labelled as samples; no customer logos,
+  testimonials or usage numbers.
+
 ### AI tagging of posts (PRD 9, AN-07)
 
 - Imported and published posts are tagged with a pillar, a topic and a hook type (Question, Bold claim, Number or list,
@@ -153,14 +178,14 @@ drizzle/                  SQL migrations
   per space live in `src/lib/billing/plans.ts`. **The prices there are drafts** (Starter ₹999, Growth ₹2,499, Agency
   ₹4,999 per space a month; $15, $35, $69 outside India; extra seats ₹299 or $5; yearly is 10 months).
 - 14-day trial with Growth's limits; the top-bar badge counts down and opens Billing (it shows the plan once chosen).
-  When the trial or a plan ends, Growth OS turns read-only for everyone (viewing works; creating, editing, publishing
+  When the trial or a plan ends, Plotline turns read-only for everyone (viewing works; creating, editing, publishing
   actions, uploads and invites are refused) with a banner, until the Owner chooses a plan.
 - Billing page (Owner; Admins can look): status, seats and storage meters, plan picker with monthly or yearly, a checkout
   that shows the invoice before paying, extra seats, the next invoice, billing details (legal name, GSTIN, email,
   address, state) and invoices. Plan changes apply limits at once and the price from the next renewal; cancel keeps the
   plan until the period ends.
 - GST invoices in India: CGST and SGST when the buyer is in the seller's state, IGST otherwise (state from the GSTIN or
-  the chosen state; IGST when unknown). Numbered `GOS-YYYY-0001`, printable to PDF.
+  the chosen state; IGST when unknown). Numbered `PLT-YYYY-0001`, printable to PDF.
 - Seats (TM-04): members plus pending invites; invites over the limit are refused with an upgrade prompt. Storage
   (MD-05) and the monthly AI budget follow the plan and the number of active spaces.
 - Sample mode: no payment is taken and no card or UPI details are collected; the worker renews sample plans at the end

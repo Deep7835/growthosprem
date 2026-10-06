@@ -1,14 +1,14 @@
-// Growth OS service worker: shows browser push notifications (NT-03) and opens the
+// Plotline service worker: shows browser push notifications (NT-03) and opens the
 // right page when one is clicked. It caches nothing.
 self.addEventListener("push", (event) => {
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "Growth OS", body: event.data ? event.data.text() : "" };
+    data = { title: "Plotline", body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "Growth OS", {
+    self.registration.showNotification(data.title || "Plotline", {
       body: data.body || "",
       tag: data.tag,
       icon: "/favicon.ico",

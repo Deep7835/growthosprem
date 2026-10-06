@@ -100,6 +100,6 @@ export async function sendTestPush(org: string, endpoint: string): Promise<boole
   const ctx = await getOrgContext(org);
   const db = await getSystemDb();
   const subs = await db.select().from(pushSubscriptions).where(and(eq(pushSubscriptions.userId, ctx.user.id), eq(pushSubscriptions.endpoint, z.string().max(1000).parse(endpoint))));
-  const sent = await pushTo(db, subs, { title: "Browser notifications are on", body: "This is how Growth OS will tell you when something needs you.", url: `/o/${org}/notifications`, tag: "test" });
+  const sent = await pushTo(db, subs, { title: "Browser notifications are on", body: "This is how Plotline will tell you when something needs you.", url: `/o/${org}/notifications`, tag: "test" });
   return sent > 0;
 }

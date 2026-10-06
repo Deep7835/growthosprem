@@ -14,9 +14,9 @@ export function inviteEmail(input: {
 }) {
   const spaces = input.role === "admin" ? "all spaces" : input.spaceNames.join(", ");
   const expires = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long" }).format(input.expiresAt);
-  const subject = `${input.inviterName} invited you to ${input.orgName} on Growth OS`;
+  const subject = `${input.inviterName} invited you to ${input.orgName} on Plotline`;
   const text = [
-    `${input.inviterName} invited you to join ${input.orgName} on Growth OS as ${ROLE[input.role]} (${spaces}).`,
+    `${input.inviterName} invited you to join ${input.orgName} on Plotline as ${ROLE[input.role]} (${spaces}).`,
     "",
     `Accept the invite: ${input.url}`,
     "",
@@ -27,7 +27,7 @@ export function inviteEmail(input: {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e4e3dc;border-radius:16px;padding:32px">
-        <tr><td style="font-size:16px;font-weight:bold;padding-bottom:24px">Growth OS</td></tr>
+        <tr><td style="font-size:16px;font-weight:bold;padding-bottom:24px">Plotline</td></tr>
         <tr><td style="font-size:22px;font-weight:bold;line-height:1.3;padding-bottom:12px">Join ${escape(input.orgName)}</td></tr>
         <tr><td style="font-size:15px;line-height:1.6;color:#3e4148;padding-bottom:24px">
           ${escape(input.inviterName)} invited you to join <strong>${escape(input.orgName)}</strong> as ${ROLE[input.role]} (${escape(spaces)}).

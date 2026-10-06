@@ -20,9 +20,9 @@ export async function usageOf(tx: Tx, now = new Date()) {
 
 export type Usage = Awaited<ReturnType<typeof usageOf>>;
 
-/** "GOS-2026-0007": numbered per organisation per year. */
+/** "PLT-2026-0007": numbered per organisation per year. */
 async function nextNumber(tx: Tx, year: number) {
-  const prefix = `GOS-${year}-`;
+  const prefix = `PLT-${year}-`;
   const [{ n }] = await tx.select({ n: count() }).from(invoices).where(like(invoices.number, `${prefix}%`));
   return `${prefix}${String(n + 1).padStart(4, "0")}`;
 }

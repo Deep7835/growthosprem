@@ -47,7 +47,7 @@ async function logAccount(tx: Tx, account: Account, action: string, after?: unkn
     targetType: "social_account",
     targetId: account.id,
     actorKind: "system",
-    actorLabel: "Growth OS",
+    actorLabel: "Plotline",
     action,
     after: after ?? null,
   });

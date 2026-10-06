@@ -188,7 +188,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps<"/r
           </div>
         </>
       )}
-      <footer className="mt-auto p-6 text-center text-xs text-muted">Powered by Growth OS</footer>
+      <footer className="mt-auto p-6 text-center text-xs text-muted">Powered by Plotline</footer>
     </Shell>
   );
 }

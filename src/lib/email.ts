@@ -10,7 +10,7 @@ export type SendResult = { sent: true } | { sent: false; reason: string };
 export async function sendEmail(message: { to: string; subject: string; html: string; text: string; idempotencyKey?: string }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { sent: false, reason: "Email isn’t set up yet." };
-  const from = process.env.EMAIL_FROM ?? "Growth OS <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM ?? "Plotline <onboarding@resend.dev>";
   try {
     const { error } = await new Resend(key).emails.send(
       { from, to: message.to, subject: message.subject, html: message.html, text: message.text },

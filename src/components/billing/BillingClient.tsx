@@ -92,11 +92,11 @@ export function BillingClient(props: {
       case "active":
         return { title: `${PLANS[current!.plan].name} plan, ${current!.interval === "year" ? "yearly" : "monthly"}`, body: `Renews on ${dateText(current!.currentPeriodEnd)}${current!.paymentMethod ? `, paid with ${current!.paymentMethod.label}` : ""}.` };
       case "canceling":
-        return { title: `${PLANS[current!.plan].name} plan, ending`, body: `Cancelled. Everything works until ${dateText(current!.currentPeriodEnd)}, then Growth OS becomes read-only.` };
+        return { title: `${PLANS[current!.plan].name} plan, ending`, body: `Cancelled. Everything works until ${dateText(current!.currentPeriodEnd)}, then Plotline becomes read-only.` };
       case "past_due":
         return { title: "Payment due", body: "The last renewal didn’t go through. Update the payment method to avoid interruption." };
       default:
-        return { title: sub ? "Plan ended" : "Trial ended", body: "Growth OS is read-only: you can look at everything, but nothing can be created, changed or published until you choose a plan. Scheduled posts that were already set to autopost still go out." };
+        return { title: sub ? "Plan ended" : "Trial ended", body: "Plotline is read-only: you can look at everything, but nothing can be created, changed or published until you choose a plan. Scheduled posts that were already set to autopost still go out." };
     }
   })();
 

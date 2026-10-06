@@ -23,8 +23,8 @@ export default async function OnboardingPage() {
   return (
     <main className="flex min-h-screen flex-col items-center gap-8 bg-ground px-4 py-12">
       <div className="flex items-center gap-2 font-display text-lg font-bold">
-        <span className="grid size-7 place-items-center rounded-lg bg-accent">G</span>
-        Growth OS
+        <span className="grid size-7 place-items-center rounded-lg bg-accent">P</span>
+        Plotline
       </div>
       {invited.length > 0 && (
         <section className="flex w-full max-w-xl flex-col gap-3">

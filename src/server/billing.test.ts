@@ -43,7 +43,7 @@ describe("billing (PRD 6.20)", () => {
 
   it("subscribes in sample mode: a paid GST invoice and the plan's AI credits", async () => {
     const { invoice } = await subscribe(await fresh(), { plan: "growth", interval: "month", extraSeats: 1, method: "upi" });
-    expect(invoice).toMatchObject({ number: `GOS-${new Date().getUTCFullYear()}-0001`, status: "paid", currency: "INR", subtotal: 2 * 249900 + 29900 });
+    expect(invoice).toMatchObject({ number: `PLT-${new Date().getUTCFullYear()}-0001`, status: "paid", currency: "INR", subtotal: 2 * 249900 + 29900 });
     expect(invoice.taxes.map((t) => t.label)).toEqual(["CGST", "SGST"]);
     expect(invoice.billedTo.legalName).toBe("KnockKnockClub Pvt Ltd");
     const [org] = await db.select().from(s.organizations);

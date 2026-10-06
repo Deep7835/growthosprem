@@ -4,7 +4,7 @@ export function AuthSetup() {
     <div className="flex w-full max-w-md flex-col gap-4 rounded-2xl border border-line bg-surface p-6">
       <h1 className="font-display text-2xl font-bold">Sign-in isn’t set up yet</h1>
       <p className="text-sm leading-relaxed text-ink-2">
-        Growth OS uses Clerk for sign-in. Add your Clerk keys to <code className="rounded bg-ground px-1">.env.local</code> and restart the
+        Plotline uses Clerk for sign-in. Add your Clerk keys to <code className="rounded bg-ground px-1">.env.local</code> and restart the
         app:
       </p>
       <pre className="overflow-x-auto rounded-lg bg-ink p-3 text-xs text-white">

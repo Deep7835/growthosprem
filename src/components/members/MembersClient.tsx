@@ -64,7 +64,7 @@ function CopyLink({ link }: { link: string }) {
         {copied ? "Link copied" : "Copy link"}
       </button>
       <a
-        href={`https://wa.me/?text=${encodeURIComponent(`You're invited to join us on Growth OS: ${link}`)}`}
+        href={`https://wa.me/?text=${encodeURIComponent(`You're invited to join us on Plotline: ${link}`)}`}
         target="_blank"
         rel="noreferrer"
         className={buttonClass("secondary", "sm")}

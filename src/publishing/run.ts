@@ -43,7 +43,7 @@ async function log(tx: Tx, b: Bundle, action: string, after?: unknown) {
     targetType: "content_item",
     targetId: b.item.id,
     actorKind: "system",
-    actorLabel: "Growth OS",
+    actorLabel: "Plotline",
     action,
     after: after ?? null,
   });

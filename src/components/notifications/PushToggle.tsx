@@ -92,7 +92,7 @@ export function PushToggle({
     unsupported: "This browser can’t show notifications from websites.",
     unconfigured: "Browser notifications aren’t set up on this server yet (VAPID keys).",
     denied: "Notifications are blocked for this site. Allow them in the browser’s site settings, then reload.",
-    off: "Get a notification on this device even when Growth OS isn’t open.",
+    off: "Get a notification on this device even when Plotline isn’t open.",
     on: "On for this browser. The Browser column above decides which types arrive.",
   };
 

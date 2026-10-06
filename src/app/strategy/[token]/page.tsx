@@ -30,7 +30,7 @@ export default async function SharedStrategyPage({ params }: PageProps<"/strateg
         </div>
       </header>
       <StrategyView doc={shared.doc} />
-      <footer className="py-6 text-center text-xs text-muted">Powered by Growth OS</footer>
+      <footer className="py-6 text-center text-xs text-muted">Powered by Plotline</footer>
     </main>
   );
 }

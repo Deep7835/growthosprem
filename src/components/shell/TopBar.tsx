@@ -29,8 +29,8 @@ export function TopBar({
   return (
     <header className="flex min-h-12 flex-wrap items-center gap-4 border-b border-line bg-surface px-4 py-1.5">
       <Link href={`/o/${orgSlug}/overview`} className="flex items-center gap-2 font-display text-[17px] font-bold">
-        <span className="grid size-[26px] place-items-center rounded-[7px] bg-accent text-sm">G</span>
-        Growth OS
+        <span className="grid size-[26px] place-items-center rounded-[7px] bg-accent text-sm">P</span>
+        Plotline
       </Link>
       <SearchPalette orgSlug={orgSlug} />
       <div className="flex-1" />

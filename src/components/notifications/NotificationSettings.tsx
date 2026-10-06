@@ -64,7 +64,7 @@ export function NotificationSettings(props: {
           ← Notifications
         </Link>
         <h1 className="mt-1 font-display text-3xl font-bold">Notification settings</h1>
-        <p className="text-sm text-muted">Choose what reaches you in Growth OS and by email at {props.email}.</p>
+        <p className="text-sm text-muted">Choose what reaches you in Plotline and by email at {props.email}.</p>
       </div>
 
       <nav aria-label="Settings for" className="flex flex-wrap gap-1.5">
@@ -151,10 +151,10 @@ export function NotificationSettings(props: {
                     <td className="px-2 text-center">
                       <input
                         type="checkbox"
-                        aria-label={`${t.label} in Growth OS`}
+                        aria-label={`${t.label} in Plotline`}
                         checked={locked || prefs[t.id].inApp}
                         disabled={locked}
-                        title={locked ? "Action required always shows in Growth OS" : undefined}
+                        title={locked ? "Action required always shows in Plotline" : undefined}
                         onChange={(e) => toggle(t.id, "inApp", e.target.checked)}
                         className="size-4"
                       />
@@ -172,7 +172,7 @@ export function NotificationSettings(props: {
           </table>
         </div>
         <p className="text-xs text-muted">
-          Action required always shows in Growth OS. A failed post emails you only if it’s still failed 30 minutes later.
+          Action required always shows in Plotline. A failed post emails you only if it’s still failed 30 minutes later.
           {!props.emailReady && " Email sending isn’t set up on this server yet, so nothing is emailed for now."}
         </p>
       </section>

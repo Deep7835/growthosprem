@@ -8,7 +8,7 @@ const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
 const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"], weight: ["600", "700"] });
 
 export const metadata: Metadata = {
-  title: { default: "Growth OS", template: "%s · Growth OS" },
+  title: { default: "Plotline", template: "%s · Plotline" },
   description: "Plan, create, approve, publish and grow social media from one workspace.",
 };
 

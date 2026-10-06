@@ -42,7 +42,7 @@ export async function sendPendingEmails(db: Db, limit = 50) {
       to: email,
       subject: n.title,
       text: `Hi ${name},\n\n${n.title}${n.body ? `\n\n${n.body}` : ""}\n\nOpen it: ${link}${f.text}`,
-      html: `<p>Hi ${escapeHtml(name)},</p><p><strong>${escapeHtml(n.title)}</strong></p>${n.body ? `<p>${escapeHtml(n.body)}</p>` : ""}<p><a href="${link}">Open in Growth OS</a></p>${f.html}`,
+      html: `<p>Hi ${escapeHtml(name)},</p><p><strong>${escapeHtml(n.title)}</strong></p>${n.body ? `<p>${escapeHtml(n.body)}</p>` : ""}<p><a href="${link}">Open in Plotline</a></p>${f.html}`,
       idempotencyKey: `notification:${n.id}`,
     });
     await db.update(notifications).set({ emailStatus: result.sent ? "sent" : "skipped" }).where(eq(notifications.id, n.id));
@@ -114,7 +114,7 @@ export async function sendDigest(db: Db, payload: { orgId: string; userId: strin
     .join("");
   await sendEmail({
     to: person.email,
-    subject: `Your Growth OS digest: ${items.length} unread in ${person.orgName}`,
+    subject: `Your Plotline digest: ${items.length} unread in ${person.orgName}`,
     text: `Hi ${person.name},\n\nHere’s what happened in ${person.orgName} in the last day.\n\n${lines}\n\nSee them all: ${page}${f.text}`,
     html: `<p>Hi ${escapeHtml(person.name)},</p><p>Here’s what happened in ${escapeHtml(person.orgName)} in the last day.</p>${html}<p><a href="${page}">See all notifications</a></p>${f.html}`,
     idempotencyKey: `digest:${payload.orgId}:${payload.userId}:${payload.date}`,

@@ -66,7 +66,7 @@ export const GST_RATE = 0.18;
 
 /** The seller on GST invoices. Draft details until the business is registered. */
 export const SELLER = {
-  name: "Growth OS (draft seller details)",
+  name: "Plotline (draft seller details)",
   address: "New Delhi, Delhi 110001, India",
   gstin: null as string | null,
   stateCode: "07",

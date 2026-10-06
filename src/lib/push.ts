@@ -18,7 +18,7 @@ let cached: VapidKeys | null | undefined;
  */
 export function vapidKeys(): VapidKeys | null {
   if (cached !== undefined) return cached;
-  const subject = process.env.VAPID_SUBJECT ?? `mailto:${process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? "support@growthos.app"}`;
+  const subject = process.env.VAPID_SUBJECT ?? `mailto:${process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1] ?? "support@plotline.app"}`;
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     return (cached = { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY, subject });
   }

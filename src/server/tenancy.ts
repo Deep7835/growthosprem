@@ -82,7 +82,7 @@ export const listVisibleSpaces = cache(async (orgSlug: string) => {
 const READ_ONLY = new Set<Action>(["content.view", "analytics.view"]);
 
 /** OB-10: what people see when the trial or plan has ended. */
-export const LOCKED_MESSAGE = "The trial or plan has ended, so Growth OS is read-only. The Owner can choose a plan in Settings › Billing.";
+export const LOCKED_MESSAGE = "The trial or plan has ended, so Plotline is read-only. The Owner can choose a plan in Settings › Billing.";
 
 /** For organisation-level changes (invites, spaces): refuses while the organisation is read-only. */
 export function assertNotLocked(ctx: { billing: { locked: boolean } }) {
