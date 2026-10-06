@@ -258,7 +258,7 @@ export function NoteEditor(props: Props) {
       </div>
 
       {props.editable && editor && (
-        <div role="toolbar" aria-label="Formatting" className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 rounded-xl border border-line bg-surface/95 p-1 backdrop-blur">
+        <div role="toolbar" aria-label="Formatting" className="sticky top-12 z-10 flex flex-wrap items-center gap-0.5 rounded-xl border border-line bg-surface/95 p-1 backdrop-blur">
           {button("B", editor.isActive("bold"), () => editor.chain().focus().toggleBold().run(), "Bold (Ctrl+B)")}
           {button("I", editor.isActive("italic"), () => editor.chain().focus().toggleItalic().run(), "Italic (Ctrl+I)")}
           {button("S", editor.isActive("strike"), () => editor.chain().focus().toggleStrike().run(), "Strikethrough")}

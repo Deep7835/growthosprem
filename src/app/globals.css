@@ -15,6 +15,11 @@
   --color-accent: #f2a93b;
   --color-accent-ink: #7a4a00;
   --color-accent-bg: #fff6e6;
+  /* Selected rows in the sidebar and menus. */
+  --color-select: #fcebcf;
+  /* The dark top bar and the fields on it. */
+  --color-bar: #1c1d21;
+  --color-bar-2: #2e2f35;
   --color-success: #1e7b4c;
   --color-success-bg: #e5f4ec;
   --color-success-ink: #14532d;

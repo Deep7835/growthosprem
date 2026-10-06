@@ -18,6 +18,8 @@ export function ProjectsClient(props: {
   projects: ProjectRow[];
   colors: string[];
   canManage: boolean;
+  /** Opens "New project" straight away (the sidebar's Create project links here with ?new=1). */
+  startOpen?: boolean;
   add: (values: Values, withFolder: boolean) => Promise<ProjectResult<{ id: string; href: string }>>;
   edit: (id: string, values: Values) => Promise<ProjectResult>;
   copy: (id: string) => Promise<ProjectResult<{ id: string }>>;
@@ -27,7 +29,9 @@ export function ProjectsClient(props: {
 }) {
   const router = useRouter();
   const [showArchived, setShowArchived] = useState(false);
-  const [dialog, setDialog] = useState<{ mode: "new" } | { mode: "edit"; project: ProjectRow } | { mode: "delete"; project: ProjectRow; usedElsewhere: string[] } | null>(null);
+  const [dialog, setDialog] = useState<{ mode: "new" } | { mode: "edit"; project: ProjectRow } | { mode: "delete"; project: ProjectRow; usedElsewhere: string[] } | null>(
+    props.startOpen && props.canManage ? { mode: "new" } : null,
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const shown = props.projects.filter((p) => showArchived || !p.archived);

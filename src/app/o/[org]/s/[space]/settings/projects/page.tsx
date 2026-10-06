@@ -6,8 +6,9 @@ import { addProject, archiveProject, copyProject, editProject, previewDelete, re
 export const metadata = { title: "Projects" };
 
 /** SP-02 Projects tab (PRD 6.5). */
-export default async function ProjectsSettingsPage({ params }: PageProps<"/o/[org]/s/[space]/settings/projects">) {
+export default async function ProjectsSettingsPage({ params, searchParams }: PageProps<"/o/[org]/s/[space]/settings/projects">) {
   const { org, space } = await params;
+  const query = await searchParams;
   const ctx = await getSpaceContext(org, space);
   const projects = await listProjects(ctx);
   return (
@@ -16,6 +17,7 @@ export default async function ProjectsSettingsPage({ params }: PageProps<"/o/[or
       projects={projects}
       colors={PROJECT_COLORS}
       canManage={ctx.can("space.settings")}
+      startOpen={query.new === "1"}
       add={addProject.bind(null, org, space)}
       edit={editProject.bind(null, org, space)}
       copy={copyProject.bind(null, org, space)}

@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { PLATFORM_NAMES, type Platform } from "@/lib/placements";
+import { Icon } from "@/components/icons";
+import { PlatformLogo } from "@/components/ui";
 import { GROUPS, highlight, shortAgo } from "@/lib/search";
 import type { ResultType, SearchResult } from "@/server/search";
 
@@ -44,8 +45,6 @@ const ICONS: Record<ResultType, React.ReactNode> = {
 
 const noop = () => () => {};
 
-const PLATFORM_SHORT: Record<Platform, string> = { instagram: "IG", facebook: "FB", linkedin: "in" };
-
 function Marked({ text, q }: { text: string; q: string }) {
   return (
     <>
@@ -62,7 +61,7 @@ function Marked({ text, q }: { text: string; q: string }) {
   );
 }
 
-/** SR-01..SR-03: opens from the top bar or Ctrl/⌘ K; arrows move, Enter opens, Esc closes. */
+/** SR-01..SR-03: opens from the top bar, Ctrl/⌘ K or Ctrl/⌘ /; arrows move, Enter opens, Esc closes. */
 export function SearchPalette({ orgSlug }: { orgSlug: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -89,10 +88,10 @@ export function SearchPalette({ orgSlug }: { orgSlug: string }) {
     trigger.current?.focus();
   }, []);
 
-  // Ctrl/⌘ K anywhere toggles the palette.
+  // Ctrl/⌘ K (or Ctrl/⌘ /) anywhere toggles the palette.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === "k" || e.key === "/")) {
         e.preventDefault();
         setOpen((o) => !o);
       }
@@ -120,7 +119,8 @@ export function SearchPalette({ orgSlug }: { orgSlug: string }) {
     input.current?.select();
   }, [open]);
 
-  // Fetch as you type; earlier requests are cancelled, repeat queries come from memory.
+  // Fetch as you type (debounced); answers to earlier queries are ignored rather than aborted,
+  // since an aborted fetch can surface as an unhandled AbortError. Repeat queries come from memory.
   useEffect(() => {
     if (!open) return;
     const term = q.trim();
@@ -130,26 +130,27 @@ export function SearchPalette({ orgSlug }: { orgSlug: string }) {
       setActive(0);
       return;
     }
-    const controller = new AbortController();
+    let stale = false;
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/o/${orgSlug}/search?q=${encodeURIComponent(term)}`, { signal: controller.signal });
+        const res = await fetch(`/api/o/${orgSlug}/search?q=${encodeURIComponent(term)}`);
         if (!res.ok) throw new Error(String(res.status));
         const body = (await res.json()) as { results: SearchResult[] };
+        if (stale) return;
         cache.current.set(term, body.results);
         setData({ q: term, results: body.results, now: Date.now() });
         setActive(0);
         setError(false);
-      } catch (e) {
-        if ((e as Error).name !== "AbortError") setError(true);
+      } catch {
+        if (!stale) setError(true);
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!stale) setLoading(false);
       }
     }, term ? 120 : 0);
     return () => {
       clearTimeout(t);
-      controller.abort();
+      stale = true;
     };
   }, [q, open, orgSlug]);
 
@@ -195,20 +196,17 @@ export function SearchPalette({ orgSlug }: { orgSlug: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        aria-keyshortcuts="Control+K Meta+K"
-        className="flex h-[34px] w-full max-w-[360px] items-center gap-2 rounded-lg border border-line bg-subtle px-2.5 text-left text-sm text-muted hover:border-ink-2"
+        aria-keyshortcuts="Control+K Meta+K Control+/ Meta+/"
+        className="flex h-8 w-full max-w-[440px] items-center gap-2 rounded-md bg-bar-2 px-2.5 text-left text-[13px] text-white/55 hover:bg-[#3a3b42] hover:text-white/75"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-          <circle cx="11" cy="11" r="7" />
-          <path d="M21 21l-4.3-4.3" />
-        </svg>
-        <span className="flex-1">Search organisation…</span>
-        <kbd className="rounded border border-line px-1.5 text-[11px]">{shortcut}</kbd>
+        <Icon name="search" size={15} />
+        <span className="min-w-0 flex-1 truncate">Search organisation…</span>
+        <kbd className="hidden rounded bg-white/10 px-1.5 font-sans text-[11px] text-white/70 sm:block">{shortcut}</kbd>
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-ink/40 px-4 pt-[10vh]" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-          <div role="dialog" aria-modal="true" aria-label="Search" className="flex max-h-[75vh] w-full max-w-[640px] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
+        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-ink/55 px-4 pt-[8vh]" onMouseDown={(e) => e.target === e.currentTarget && close()}>
+          <div role="dialog" aria-modal="true" aria-label="Search" className="flex max-h-[75vh] w-full max-w-[880px] flex-col overflow-hidden rounded-xl border border-line bg-surface text-ink shadow-2xl">
             <div className="flex items-center gap-2.5 border-b border-line px-4">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden className="text-muted">
                 <circle cx="11" cy="11" r="7" />
@@ -231,8 +229,8 @@ export function SearchPalette({ orgSlug }: { orgSlug: string }) {
                 className="h-14 min-w-0 flex-1 bg-transparent text-[16px]"
               />
               {loading && <span aria-hidden className="size-4 animate-spin rounded-full border-2 border-line border-t-ink-2" />}
-              <button type="button" onClick={close} className="rounded border border-line px-1.5 text-[11px] text-muted hover:text-ink">
-                Esc
+              <button type="button" onClick={close} aria-label="Close search" className="grid size-7 place-items-center rounded-md bg-subtle text-muted hover:bg-line-soft hover:text-ink">
+                <Icon name="x" size={15} />
               </button>
             </div>
 
@@ -275,11 +273,13 @@ export function SearchPalette({ orgSlug }: { orgSlug: string }) {
                           )}
                         </span>
                         <span className="flex shrink-0 items-center gap-2 text-xs text-muted">
-                          {r.platforms.map((p) => (
-                            <span key={p} title={PLATFORM_NAMES[p]} aria-label={PLATFORM_NAMES[p]} className="rounded border border-line px-1 text-[10px] font-bold text-ink-2">
-                              {PLATFORM_SHORT[p]}
+                          {r.platforms.length > 0 && (
+                            <span className="flex items-center gap-1">
+                              {r.platforms.map((p) => (
+                                <PlatformLogo key={p} platform={p} size={16} />
+                              ))}
                             </span>
-                          ))}
+                          )}
                           {r.space && (
                             <span className="hidden items-center gap-1 sm:inline-flex">
                               <span aria-hidden className="size-2 rounded-sm" style={{ background: r.space.color }} />

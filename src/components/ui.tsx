@@ -2,7 +2,7 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { initials } from "@/lib/format";
-import { PLACEMENTS, type PlacementKind } from "@/lib/placements";
+import { PLACEMENTS, PLATFORM_NAMES, type Platform, type PlacementKind } from "@/lib/placements";
 
 const BUTTON = {
   primary: "bg-ink text-white hover:bg-ink-2 disabled:bg-line disabled:text-muted",
@@ -66,6 +66,44 @@ export function PlacementChip({ kind }: { kind: PlacementKind }) {
   const p = PLACEMENTS[kind];
   const tone = p.platform === "instagram" ? "bg-[#FCEBDD] text-[#8A4200]" : p.platform === "facebook" ? "bg-data-bg text-data" : "bg-[#E3EEF6] text-[#0A4A7A]";
   return <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${tone}`}>{p.short}</span>;
+}
+
+/** The platform's mark in its brand colours, for rows where a text chip would be too wide. */
+export function PlatformLogo({ platform, size = 18 }: { platform: Platform; size?: number }) {
+  const name = PLATFORM_NAMES[platform];
+  if (platform === "instagram")
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label={name} className="shrink-0">
+        <title>{name}</title>
+        <defs>
+          <radialGradient id="pl-ig" cx="0.3" cy="1.05" r="1.2">
+            <stop offset="0" stopColor="#fdd56a" />
+            <stop offset="0.35" stopColor="#f56040" />
+            <stop offset="0.7" stopColor="#c13584" />
+            <stop offset="1" stopColor="#5851db" />
+          </radialGradient>
+        </defs>
+        <rect width="24" height="24" rx="6.5" fill="url(#pl-ig)" />
+        <rect x="5.5" y="5.5" width="13" height="13" rx="4" fill="none" stroke="#fff" strokeWidth="1.8" />
+        <circle cx="12" cy="12" r="3.1" fill="none" stroke="#fff" strokeWidth="1.8" />
+        <circle cx="16.3" cy="7.7" r="1" fill="#fff" />
+      </svg>
+    );
+  if (platform === "facebook")
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label={name} className="shrink-0">
+        <title>{name}</title>
+        <circle cx="12" cy="12" r="12" fill="#1877f2" />
+        <path d="M13.4 24v-8.6h2.9l.4-3.4h-3.3V9.9c0-1 .3-1.6 1.7-1.6h1.8v-3a24 24 0 0 0-2.6-.1c-2.6 0-4.3 1.6-4.3 4.4V12H7.1v3.4H10V24z" fill="#fff" />
+      </svg>
+    );
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label={name} className="shrink-0">
+      <title>{name}</title>
+      <rect width="24" height="24" rx="5" fill="#0a66c2" />
+      <path d="M6.3 9.5h2.6V18H6.3zM7.6 5.4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM10.6 9.5h2.5v1.2c.4-.7 1.2-1.4 2.6-1.4 2.7 0 3.2 1.8 3.2 4.1V18h-2.6v-4c0-1 0-2.2-1.4-2.2s-1.6 1-1.6 2.1V18h-2.7z" fill="#fff" />
+    </svg>
+  );
 }
 
 export function StatusDot({ color }: { color: string }) {

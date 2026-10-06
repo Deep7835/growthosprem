@@ -1,11 +1,17 @@
+"use client";
+
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { switchDevUser } from "@/app/actions/dev";
+import { Icon } from "@/components/icons";
+import { Popover } from "@/components/Popover";
 import { Avatar } from "@/components/ui";
 import { SearchPalette } from "./SearchPalette";
+import { useShell } from "./ShellState";
 
 const ROLE_LABEL = { owner: "Owner", admin: "Admin", manager: "Manager", editor: "Editor" } as const;
 
+/** The dark bar over the main column: sidebar toggle, search, notifications, plan and you. */
 export function TopBar({
   orgSlug,
   user,
@@ -25,26 +31,38 @@ export function TopBar({
   billing?: { phase: string; planName: string };
   bell?: React.ReactNode;
 }) {
-  // Clerk's menu (profile, sign out) when signed in through Clerk; the seeded-user switcher with AUTH_MODE=dev.
+  const { collapsed, toggle } = useShell();
   return (
-    <header className="flex min-h-12 flex-wrap items-center gap-4 border-b border-line bg-surface px-4 py-1.5">
-      <Link href={`/o/${orgSlug}/overview`} className="flex items-center gap-2 font-display text-[17px] font-bold">
-        <span className="grid size-[26px] place-items-center rounded-[7px] bg-accent text-sm">P</span>
-        Plotline
+    <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 bg-bar px-2 text-white sm:px-3">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={collapsed ? "Show sidebar" : "Toggle sidebar"}
+        title={collapsed ? "Show sidebar" : "Hide sidebar"}
+        className="grid size-8 place-items-center rounded-md text-white/70 hover:bg-white/10 hover:text-white"
+      >
+        <Icon name="panel" size={17} />
+      </button>
+      <span aria-hidden className="h-5 w-px bg-white/15" />
+      <Link href={`/o/${orgSlug}/overview`} aria-label="Plotline, Overview" className="grid size-7 place-items-center rounded-md bg-accent text-sm font-bold text-ink">
+        P
       </Link>
-      <SearchPalette orgSlug={orgSlug} />
-      <div className="flex-1" />
+
+      <div className="flex min-w-0 flex-1 justify-center px-1 sm:px-4">
+        <SearchPalette orgSlug={orgSlug} />
+      </div>
+
       {bell}
       {(role === "owner" || role === "admin") && billing && (
         <Link
           href={`/o/${orgSlug}/settings/billing`}
-          className={`flex h-[30px] items-center rounded-full border px-3 text-[13px] font-semibold ${
-            billing.phase === "expired" || billing.phase === "past_due" ? "border-danger bg-danger-bg text-danger" : billing.phase === "trial" ? "border-line bg-accent-bg text-accent-ink" : "border-line bg-surface text-ink-2"
+          className={`hidden h-7 items-center rounded-md px-2.5 text-xs font-semibold sm:flex ${
+            billing.phase === "expired" || billing.phase === "past_due" ? "bg-danger text-white" : billing.phase === "trial" ? "bg-accent text-ink hover:brightness-105" : "bg-white/10 text-white hover:bg-white/15"
           }`}
         >
           {billing.phase === "trial"
             ? trialDaysLeft != null
-              ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left in trial`
+              ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left on trial`
               : "Free trial"
             : billing.phase === "expired"
               ? "Choose a plan"
@@ -54,39 +72,39 @@ export function TopBar({
         </Link>
       )}
       {devUsers.length === 0 ? (
-        <div className="flex items-center gap-2.5">
-          <span className="hidden text-right text-[13px] leading-tight sm:block">
-            <span className="block font-semibold">{user.name}</span>
-            <span className="block text-muted">{ROLE_LABEL[role]}</span>
-          </span>
+        <span className="grid size-8 place-items-center" title={`${user.name} · ${ROLE_LABEL[role]}`}>
           <UserButton />
-        </div>
+        </span>
       ) : (
-        <details className="relative">
-          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-subtle">
-            <Avatar name={user.name} color="#17181C" size={30} />
-            <span className="hidden text-left text-[13px] leading-tight sm:block">
-              <span className="block font-semibold">{user.name}</span>
-              <span className="block text-muted">{ROLE_LABEL[role]}</span>
-            </span>
-          </summary>
-          <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-line bg-surface p-3 shadow-lg">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Development: sign in as</p>
-            <form action={switchDevUser} className="flex flex-col gap-1">
-              {devUsers.map((u) => (
-                <button
-                  key={u.email}
-                  name="email"
-                  value={u.email}
-                  type="submit"
-                  className={`rounded-lg px-2 py-2 text-left text-sm hover:bg-subtle ${u.email === user.email ? "font-semibold" : ""}`}
-                >
-                  {u.name} <span className="text-muted">· {u.email}</span>
-                </button>
-              ))}
-            </form>
-          </div>
-        </details>
+        <Popover
+          label={`${user.name}, ${ROLE_LABEL[role]}`}
+          buttonClassName="grid size-8 place-items-center rounded-full hover:ring-2 hover:ring-white/20"
+          panelClassName="right-0 top-full mt-2 w-72"
+          button={<Avatar name={user.name} color="#F2A93B" size={28} />}
+        >
+          {() => (
+            <div className="p-2">
+              <p className="px-1 text-sm font-semibold">{user.name}</p>
+              <p className="px-1 pb-2 text-[13px] text-muted">
+                {user.email} · {ROLE_LABEL[role]}
+              </p>
+              <p className="mb-1 border-t border-line-soft px-1 pt-2 text-xs font-semibold uppercase tracking-wider text-muted">Development: sign in as</p>
+              <form action={switchDevUser} className="flex flex-col gap-0.5">
+                {devUsers.map((u) => (
+                  <button
+                    key={u.email}
+                    name="email"
+                    value={u.email}
+                    type="submit"
+                    className={`rounded-lg px-2 py-2 text-left text-sm hover:bg-subtle ${u.email === user.email ? "font-semibold" : ""}`}
+                  >
+                    {u.name} <span className="text-muted">· {u.email}</span>
+                  </button>
+                ))}
+              </form>
+            </div>
+          )}
+        </Popover>
       )}
     </header>
   );

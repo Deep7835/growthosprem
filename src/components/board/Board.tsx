@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useOptimistic, useTransition, useState } from "react";
+import { toast } from "@/components/Toaster";
 import { AvatarStack, PlacementChip, PublishState, StatusDot } from "@/components/ui";
 import { formatSchedule } from "@/lib/format";
 import type { CardItem } from "@/server/content";
@@ -34,28 +35,21 @@ export function Board({
   );
   const [, startTransition] = useTransition();
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   function drop(statusId: string, contentId: string) {
     setDragOver(null);
     startTransition(async () => {
       applyMove({ id: contentId, statusId });
       try {
-        setError(null);
         await moveAction(contentId, statusId);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not move the post.");
+        toast("error", "Couldn’t move the post", e instanceof Error ? e.message : undefined);
       }
     });
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {error && (
-        <p role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
-          {error}
-        </p>
-      )}
       <div className="flex gap-3 overflow-x-auto pb-4">
         {statuses.map((status) => {
           const column = optimisticCards.filter((c) => c.statusId === status.id);

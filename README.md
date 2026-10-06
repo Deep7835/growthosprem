@@ -202,7 +202,7 @@ drizzle/                  SQL migrations
 
 ### Spaces (Settings › Spaces, space settings › Space and Members, PRD 6.3, SP-01 to SP-06)
 
-- "Create your new social space" (Owner and Admins, from the sidebar "+" or Settings › Spaces): avatar initial and
+- "Create your new social space" (Owner and Admins, from the sidebar's "Create social space" or Settings › Spaces): avatar initial and
   colour, name, time zone, members (existing Managers and Editors; Owners and Admins are in every space), and statuses
   from a template or copied from another space. The footer shows "N members, N statuses"; "Create and open" or "Create
   only".
@@ -274,11 +274,31 @@ drizzle/                  SQL migrations
   (`npx web-push generate-vapid-keys`); development generates a pair into `.data/vapid.json`.
 - Not yet: WhatsApp and Slack (NT-05, V2), workflow notifications (V2).
 
-### Search palette (top bar or Ctrl/⌘ K, PRD SR-01 to SR-03)
+### App frame and navigation
+
+- Layout modelled on the owner's reference boards, in Plotline's own colours: a full-height sidebar with the
+  organisation at the top, and a dark top bar over the main column only (sidebar toggle, logo, search, notification
+  bell, trial or plan badge, your avatar). On wide screens the toggle hides the sidebar and a cookie remembers it; on
+  phones the sidebar is a drawer.
+- Sidebar: the gear opens Members, Spaces and Billing (Owners and Admins) and your notification settings; Overview,
+  Notifications (unread count) and AI Copilot; "Social spaces" with an explanation, a "···" menu with a Show archived
+  spaces switch, and a Search spaces box that also finds projects. Each space opens and closes with its chevron (the
+  one you're in opens by itself) and has a "···" menu (Board, Calendar, Analytics, Space settings, Members). Inside:
+  First audit, Analytics and a Projects group with its count, "Create project" (opens the dialog in Space settings ›
+  Projects) and the open projects. At the bottom: Create social space, Invite members, Product updates and Community.
+- Product updates (`src/lib/changelog.ts`): the latest changes in a popover with New, Improved and Fixed tags, a
+  "New" badge until you open it (remembered in this browser), and the full list at `/o/[org]/updates`.
+- Community: links to a community group and an affiliate programme only when `NEXT_PUBLIC_COMMUNITY_URL` and
+  `NEXT_PUBLIC_AFFILIATE_URL` are set, and Install app (a web app manifest at `src/app/manifest.ts` with icons in
+  `public/icons`); browsers that don't offer installing get a short how-to instead.
+- Short messages in the corner (`toast()` from `src/components/Toaster.tsx`), for example when a Board move fails.
+- Not yet: Support Center (phase 5), settings in one window (phase 2).
+
+### Search palette (top bar, Ctrl/⌘ K or Ctrl/⌘ /, PRD SR-01 to SR-03)
 
 - Searches content titles, captions and hashtags, tasks, projects, spaces, notes and Idea Bank ideas across every space
   you can see, grouped by type, with the match highlighted, a snippet when it matched in the text, the space, platform
-  icons and how long ago. An empty search lists recent posts and your spaces.
+  logos and how long ago. An empty search lists recent posts and your spaces.
 - Arrow keys move, Enter opens (posts open in their panel, projects open the Table filtered to them, notes and ideas
   open on their own), Esc closes. Results come back in about 30–60 ms on the sample data.
 - Not yet: search inside media by AI description (SR-04, V2); a trigram index for large workspaces.
