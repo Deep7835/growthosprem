@@ -884,6 +884,24 @@ export const spaceMoments = pgTable(
 export const billingProvider = pgEnum("billing_provider", ["sample", "razorpay", "stripe"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "past_due", "canceled"]);
 
+/** Support Center tickets: kept here and emailed to SUPPORT_EMAIL when that's set. */
+export const supportTickets = pgTable(
+  "support_tickets",
+  {
+    id: id(),
+    orgId: orgId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    spaceId: uuid("space_id").references(() => spaces.id, { onDelete: "set null" }),
+    category: text("category").notNull(),
+    message: text("message").notNull(),
+    // Who to reply to, as it was when sent.
+    email: text("email").notNull(),
+    emailed: boolean("emailed").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index("support_tickets_org").on(t.orgId, t.createdAt)],
+);
+
 /** Settings › Tags: the organisation's tag list, offered when tagging posts. Posts keep tags as text. */
 export const orgTags = pgTable(
   "org_tags",

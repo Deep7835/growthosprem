@@ -7,6 +7,7 @@ import { Icon, type IconName } from "@/components/icons";
 import { menuItem, Popover } from "@/components/Popover";
 import { useShell } from "./ShellState";
 import { CommunityMenu, ProductUpdates } from "./SidebarExtras";
+import { SupportCenter, type SupportProps } from "./SupportCenter";
 
 export interface SidebarSpace {
   slug: string;
@@ -176,7 +177,10 @@ export function Sidebar({
   unread = 0,
   canManageSpaces = false,
   archived = [],
+  support,
 }: {
+  /** The Support Center window's ticket form and who's asking. */
+  support?: Omit<SupportProps, "orgSlug">;
   orgSlug: string;
   orgName: string;
   spaces: SidebarSpace[];
@@ -325,6 +329,7 @@ export function Sidebar({
           </NavItem>
         </div>
         <div className="flex shrink-0 flex-col gap-px border-t border-line px-2.5 py-2">
+          {support && <SupportCenter orgSlug={orgSlug} {...support} />}
           <ProductUpdates allHref={`${base}/updates`} />
           <CommunityMenu />
         </div>

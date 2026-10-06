@@ -79,78 +79,136 @@ function Card({ title, subtitle, action, children }: { title: string; subtitle?:
   );
 }
 
-/* ---------- Engagement rate by platform: horizontal bars, value at the tip ---------- */
+/* ---------- Engagement rate by platform: vertical bars on a % axis, value above each ---------- */
 
 export function EngagementByPlatform({ platforms }: { platforms: Report["platforms"] }) {
   const { ref, bind, layer } = useTip();
-  const max = Math.max(...platforms.map((p) => p.engagementRate), 0.01);
+  const pct = platforms.map((p) => p.engagementRate * 100);
+  const { hi, ticks } = niceTicks(0, Math.max(1, ...pct), 4);
+  const H = 180;
   return (
     <Card title="Engagement rate by platform" subtitle="Average per post in this period">
-      <div ref={ref} className="relative flex flex-col gap-4">
-        {platforms.map((p) => (
-          <div key={p.accountId} className="grid grid-cols-[96px_1fr] items-center gap-3 text-sm">
-            <span className="text-ink-2">{PLATFORM_NAMES[p.platform]}</span>
-            <div className="flex items-center gap-2">
-              <div
-                {...bind(rate(p.engagementRate), `${PLATFORM_NAMES[p.platform]} · ${p.posts} posts`)}
-                className="h-5 rounded-r outline-offset-2 hover:opacity-85"
-                style={{ width: `${Math.max(2, (p.engagementRate / max) * 85)}%`, background: PLATFORM_COLOR[p.platform] }}
-              />
-              <span className="font-semibold">{p.posts ? rate(p.engagementRate) : "No posts"}</span>
+      <div ref={ref} className="relative">
+        <div className="grid grid-cols-[40px_1fr] gap-2">
+          <div className="relative" style={{ height: H }} aria-hidden>
+            {ticks.map((t) => (
+              <span key={t} className="absolute right-0 -translate-y-1/2 text-[11px] text-faint" style={{ top: H - (t / hi) * H }}>
+                {t}%
+              </span>
+            ))}
+          </div>
+          <div className="relative" style={{ height: H }}>
+            {ticks.map((t) => (
+              <span key={t} aria-hidden className="absolute inset-x-0 border-t border-line-soft" style={{ top: H - (t / hi) * H }} />
+            ))}
+            <div className="absolute inset-0 flex items-end justify-around gap-3 px-2">
+              {platforms.map((p, i) => (
+                <div key={p.accountId} className="group flex h-full max-w-[120px] flex-1 flex-col justify-end rounded-t-md hover:bg-line-soft/60">
+                  <span className="mb-1 text-center text-xs font-semibold">{p.posts ? rate(p.engagementRate) : "—"}</span>
+                  <div
+                    {...bind(rate(p.engagementRate), `${PLATFORM_NAMES[p.platform]} · ${p.posts} post${p.posts === 1 ? "" : "s"}`)}
+                    className="mx-auto w-3/4 rounded-t outline-offset-2 group-hover:opacity-85"
+                    style={{ height: `${Math.max(1, (pct[i] / hi) * 100)}%`, background: PLATFORM_COLOR[p.platform] }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
-        ))}
+        </div>
+        <div className="ml-[48px] mt-1.5 flex justify-around gap-3 px-2 text-xs text-ink-2">
+          {platforms.map((p) => (
+            <span key={p.accountId} className="max-w-[120px] flex-1 text-center">
+              {PLATFORM_NAMES[p.platform]}
+            </span>
+          ))}
+        </div>
         {layer}
       </div>
     </Card>
   );
 }
 
-/* ---------- Contribution by platform: one 100% share bar with a legend ---------- */
+/* ---------- Contribution by platform: a donut or bars, with a legend that carries the numbers ---------- */
+
+function arc(cx: number, cy: number, r: number, from: number, to: number) {
+  const pt = (a: number) => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+  const [x1, y1] = pt(from);
+  const [x2, y2] = pt(to);
+  return `M ${x1} ${y1} A ${r} ${r} 0 ${to - from > Math.PI ? 1 : 0} 1 ${x2} ${y2}`;
+}
 
 export function Contribution({ contribution }: { contribution: Report["contribution"] }) {
   const [metric, setMetric] = useState<keyof Report["contribution"]>("engagement");
+  const [chart, setChart] = useState<"donut" | "bars">("donut");
   const { ref, bind, layer } = useTip();
   const parts = contribution[metric].filter((c) => c.value > 0);
+  const max = Math.max(1, ...parts.map((c) => c.value));
+  let angle = 0;
   return (
     <Card
       title="Contribution by platform"
       subtitle="Share of the total across connected accounts"
       action={
-        <Segmented
-          label="Metric"
-          value={metric}
-          onChange={setMetric}
-          options={[
-            ["engagement", "Engagement"],
-            ["views", "Views"],
-            ["followers", "Followers"],
-          ]}
-        />
+        <span className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-[13px] text-muted">
+            Metric
+            <select value={metric} onChange={(e) => setMetric(e.target.value as keyof Report["contribution"])} className="h-8 rounded-lg border border-line bg-surface px-2 text-[13px] font-semibold text-ink">
+              <option value="engagement">Engagement</option>
+              <option value="views">Views</option>
+              <option value="followers">Followers</option>
+            </select>
+          </label>
+          <Segmented
+            label="Chart"
+            value={chart}
+            onChange={setChart}
+            options={[
+              ["donut", "Donut"],
+              ["bars", "Bars"],
+            ]}
+          />
+        </span>
       }
     >
-      <div ref={ref} className="relative flex flex-col gap-4">
+      <div ref={ref} className="relative flex flex-col items-center gap-4">
         {parts.length === 0 ? (
-          <p className="text-sm text-muted">No {metric} in this period.</p>
+          <p className="self-start text-sm text-muted">No {metric} in this period.</p>
+        ) : chart === "donut" ? (
+          <svg viewBox="0 0 200 200" className="size-44" role="img" aria-label={`${metric} by platform`}>
+            {parts.length === 1 ? (
+              <circle cx="100" cy="100" r="72" fill="none" stroke={PLATFORM_COLOR[parts[0].platform]} strokeWidth="34" {...bind(`${num(parts[0].value)} (100%)`, PLATFORM_NAMES[parts[0].platform])} />
+            ) : (
+              parts.map((c) => {
+                const from = angle;
+                angle += c.share * Math.PI * 2;
+                // A small gap between slices, in the card's colour.
+                return <path key={c.platform} d={arc(100, 100, 72, from + 0.02, angle - 0.02)} fill="none" stroke={PLATFORM_COLOR[c.platform]} strokeWidth="34" {...bind(`${num(c.value)} (${Math.round(c.share * 100)}%)`, PLATFORM_NAMES[c.platform])} />;
+              })
+            )}
+            <text x="100" y="96" textAnchor="middle" className="fill-ink text-[22px] font-semibold">
+              {num(parts.reduce((a, c) => a + c.value, 0))}
+            </text>
+            <text x="100" y="116" textAnchor="middle" className="fill-muted text-[11px]">
+              total {metric}
+            </text>
+          </svg>
         ) : (
-          <div className="flex h-6 gap-[2px] overflow-hidden rounded">
+          <div className="flex h-44 w-full items-end justify-around gap-4 border-b border-line-soft px-4">
             {parts.map((c) => (
-              <div
-                key={c.platform}
-                {...bind(`${Math.round(c.share * 100)}% · ${num(c.value)}`, PLATFORM_NAMES[c.platform])}
-                className="h-full outline-offset-2 hover:opacity-85"
-                style={{ width: `${c.share * 100}%`, background: PLATFORM_COLOR[c.platform] }}
-              />
+              <div key={c.platform} className="flex h-full max-w-[110px] flex-1 flex-col items-center justify-end gap-1">
+                <span className="text-xs font-semibold">{num(c.value)}</span>
+                <div {...bind(`${num(c.value)} (${Math.round(c.share * 100)}%)`, PLATFORM_NAMES[c.platform])} className="w-3/4 rounded-t outline-offset-2 hover:opacity-85" style={{ height: `${Math.max(2, (c.value / max) * 85)}%`, background: PLATFORM_COLOR[c.platform] }} />
+              </div>
             ))}
           </div>
         )}
-        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
           {contribution[metric].map((c) => (
             <li key={c.platform} className="flex items-center gap-2">
               <span aria-hidden className="size-3 rounded-sm" style={{ background: PLATFORM_COLOR[c.platform] }} />
               <span className="text-ink-2">{PLATFORM_NAMES[c.platform]}</span>
-              <strong>{Math.round(c.share * 100)}%</strong>
-              <span className="text-muted">{num(c.value)}</span>
+              <strong>{num(c.value)}</strong>
+              <span className="text-muted">({Math.round(c.share * 100)}%)</span>
             </li>
           ))}
         </ul>

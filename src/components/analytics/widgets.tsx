@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useOptimistic, useState, useTransition } from "react";
-import { SourceLabel, buttonClass } from "@/components/ui";
+import { Icon, type IconName } from "@/components/icons";
+import { PlatformLogo, SourceLabel, buttonClass } from "@/components/ui";
+import { PLATFORM_COLOR } from "@/lib/analytics/colors";
 import { HOOK_TYPES } from "@/lib/ai/tags";
 import type { Report } from "@/lib/analytics/report";
 import { PLATFORM_NAMES } from "@/lib/placements";
@@ -44,6 +46,14 @@ export function KpiTiles({ kpis, days, compare }: { kpis: Report["kpis"]; days: 
           up: kpis.followers.value >= kpis.followers.start,
         };
 
+  const ICON: Record<keyof typeof DEFINITIONS, [IconName, string]> = {
+    engagement: ["heart", "All interactions on posts"],
+    engagementRate: ["percent", "Average across posts"],
+    views: ["eye", "All views and plays"],
+    followers: ["users", "Across connected accounts"],
+    followerGrowth: ["trending", "New followers, net"],
+    posts: ["image", "Published in the period"],
+  };
   const tiles: { key: keyof typeof DEFINITIONS; label: string; value: string; delta: Delta; note?: string }[] = [
     { key: "engagement", label: "Engagement", value: num(kpis.engagement.value), delta: percentDelta(kpis.engagement.value, kpis.engagement.previous) },
     { key: "engagementRate", label: "Engagement rate", value: rate(er.value), delta: erDelta },
@@ -64,18 +74,22 @@ export function KpiTiles({ kpis, days, compare }: { kpis: Report["kpis"]; days: 
       {tiles.map((t) => (
         <div key={t.key} className="flex flex-col gap-1.5 rounded-xl border border-line bg-surface px-4 py-3.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[13px] font-medium text-muted">{t.label}</span>
-            <button
-              type="button"
-              aria-expanded={open === t.key}
-              aria-label={`What does ${t.label} mean?`}
-              onClick={() => setOpen(open === t.key ? null : t.key)}
-              className="grid size-[22px] place-items-center rounded-full border border-line text-[11px] font-bold text-muted hover:text-ink"
-            >
-              i
-            </button>
+            <span className="flex items-center gap-1.5 text-[13px] font-medium text-muted">
+              {t.label}
+              <button
+                type="button"
+                aria-expanded={open === t.key}
+                aria-label={`What does ${t.label} mean?`}
+                onClick={() => setOpen(open === t.key ? null : t.key)}
+                className="grid size-[18px] place-items-center rounded-full border border-line text-[10px] font-bold text-muted hover:text-ink"
+              >
+                i
+              </button>
+            </span>
+            <Icon name={ICON[t.key][0]} size={16} className="text-faint" />
           </div>
-          <span className="text-[28px] font-semibold leading-tight">{t.value}</span>
+          <span className="text-[26px] font-semibold leading-tight">{t.value}</span>
+          <span className="text-xs text-muted">{ICON[t.key][1]}</span>
           {(compare || t.key === "followers") && t.delta ? (
             <span className={`text-[13px] font-semibold ${t.delta.up ? "text-success" : "text-danger"}`}>
               <span aria-hidden>{t.delta.up ? "▲" : "▼"}</span> {t.delta.text}{" "}
@@ -206,7 +220,7 @@ export function TopContent({ posts }: { posts: Post[] }) {
   const [by, setBy] = useState<keyof typeof RANK_BY>("views");
   const ranked = useMemo(() => {
     const sorted = [...posts].sort((a, b) => b[by] - a[by]);
-    return list === "top" ? sorted.slice(0, 5) : sorted.reverse().slice(0, 3);
+    return list === "top" ? sorted.slice(0, 6) : sorted.reverse().slice(0, 3);
   }, [posts, list, by]);
 
   return (
@@ -240,30 +254,42 @@ export function TopContent({ posts }: { posts: Post[] }) {
       {ranked.length === 0 ? (
         <p className="text-sm text-muted">No posts in this period.</p>
       ) : (
-        <ol className="flex flex-col">
+        <ol className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
           {ranked.map((p, i) => (
-            <li key={p.id} className="flex flex-wrap items-center gap-3.5 border-t border-line-soft py-3">
-              <span className="w-7 font-display text-lg font-bold text-muted">#{i + 1}</span>
-              <span className="grid size-12 place-items-center rounded-[10px] bg-ground font-display text-xl font-bold text-ink-2">{p.title[0]}</span>
-              <div className="flex min-w-[200px] flex-1 flex-col gap-0.5">
-                <strong className="text-[15px]">{p.title}</strong>
-                <span className="text-xs text-muted">
-                  {PLATFORM_NAMES[p.platform]} {FORMAT[p.format]} · {shortDate(p.publishedAt)}
-                </span>
+            <li key={p.id} className="flex flex-col gap-2.5 rounded-xl border border-line bg-surface p-3.5" style={{ borderLeft: `4px solid ${PLATFORM_COLOR[p.platform]}` }}>
+              <div className="flex items-center gap-2">
+                <PlatformLogo platform={p.platform} size={16} />
+                <span className="text-[13px] font-medium">{PLATFORM_NAMES[p.platform]}</span>
+                <span className="rounded bg-line-soft px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-ink-2">{FORMAT[p.format]}</span>
+                <span className="ml-auto font-display text-sm font-bold text-muted">#{i + 1}</span>
               </div>
-              <dl className="grid grid-cols-[repeat(4,minmax(72px,auto))] gap-4 text-[13px]">
-                {[
-                  ["Views", num(p.views)],
-                  ["Likes", num(p.likes)],
-                  ["Comments", num(p.comments)],
-                  [by === "saves" ? "Saves" : by === "shares" ? "Shares" : "Eng. rate", by === "saves" ? num(p.saves) : by === "shares" ? num(p.shares) : rate(p.engagementRate)],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex flex-col">
-                    <dt className="text-[11px] text-muted">{k}</dt>
-                    <dd className="font-semibold">{v}</dd>
-                  </div>
-                ))}
-              </dl>
+              <p className="line-clamp-2 min-h-10 text-[13.5px] leading-snug text-ink-2">{p.caption || p.title}</p>
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px]">
+                <span className="flex items-center gap-1" title="Views">
+                  <Icon name="eye" size={14} className="text-muted" /> {num(p.views)}
+                </span>
+                <span className="flex items-center gap-1" title="Likes">
+                  <Icon name="heart" size={14} className="text-muted" /> {num(p.likes)}
+                </span>
+                <span className="flex items-center gap-1" title="Comments">
+                  <Icon name="comment" size={14} className="text-muted" /> {num(p.comments)}
+                </span>
+                {(by === "saves" || by === "shares") && (
+                  <span className="text-muted">
+                    {by === "saves" ? "Saves" : "Shares"} {num(by === "saves" ? p.saves : p.shares)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2 border-t border-line-soft pt-2 text-xs">
+                <span className="text-muted">
+                  <strong className="text-ink">{rate(p.engagementRate)}</strong> engagement · {shortDate(p.publishedAt)}
+                </span>
+                {p.permalink && (
+                  <a href={p.permalink} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-semibold text-ink-2 hover:text-ink">
+                    <Icon name="external" size={13} /> View post
+                  </a>
+                )}
+              </div>
             </li>
           ))}
         </ol>

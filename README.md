@@ -105,6 +105,13 @@ drizzle/                  SQL migrations
 - Refresh is limited to once every 15 minutes per space. Paid ads (V2) shows its empty state.
 - Contribution by platform is a single share bar instead of the PRD's pie/bar toggle: a pie of two or three slices is hard
   to compare.
+- Layout after the reference boards: Organic and Paid ads as underline tabs; a platform menu (logos, not-connected
+  ones greyed) with "N of 3 platforms active"; Insights (opens the AI Copilot with a question about this space's
+  numbers), Reports (download the period's posts as CSV, or print or save the page as PDF) and the date range as a
+  button showing the period. "Cross-platform overview" KPI cards have an icon and a one-line description;
+  Engagement rate by platform is a vertical bar chart on a % axis; Contribution has a metric menu and Donut or Bars;
+  Top content shows cards with the platform, format, rank, caption, views, likes, comments, engagement rate and
+  View post (the platform's link). Paid ads shows a Meta Ads row to connect (V2).
 
 ### Invites and members (`/o/[org]/settings/members`, PRD 6.19, flow F5)
 
@@ -308,7 +315,10 @@ drizzle/                  SQL migrations
   `NEXT_PUBLIC_AFFILIATE_URL` are set, and Install app (a web app manifest at `src/app/manifest.ts` with icons in
   `public/icons`); browsers that don't offer installing get a short how-to instead.
 - Short messages in the corner (`toast()` from `src/components/Toaster.tsx`), for example when a Board move fails.
-- Not yet: Support Center (phase 5).
+- Support Center (sidebar): a help window on the page with search over the help articles (`src/lib/help.ts`, also at
+  `/o/[org]/help`), bookmarks (Product updates, all articles, keyboard shortcuts) and Submit a ticket by topic. Tickets
+  are saved in `support_tickets` and emailed to `SUPPORT_EMAIL` with the person as reply-to when that and Resend are
+  set up; the window says plainly when email isn't set up.
 
 ### Settings window
 

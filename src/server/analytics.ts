@@ -28,6 +28,8 @@ export async function getSpaceAnalytics(ctx: SpaceContext, opts: { days: RangeDa
         id: p.id,
         accountId: p.socialAccountId,
         title: p.title,
+        caption: p.caption.slice(0, 220),
+        permalink: p.permalink,
         format: p.format,
         pillar: p.pillar,
         topic: p.topic,

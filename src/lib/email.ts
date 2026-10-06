@@ -7,13 +7,13 @@ export type SendResult = { sent: true } | { sent: false; reason: string };
  * Transactional email through Resend. Without RESEND_API_KEY nothing is sent and the
  * caller shows the link to copy instead, so local development works without email.
  */
-export async function sendEmail(message: { to: string; subject: string; html: string; text: string; idempotencyKey?: string }): Promise<SendResult> {
+export async function sendEmail(message: { to: string; subject: string; html: string; text: string; idempotencyKey?: string; replyTo?: string }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { sent: false, reason: "Email isn’t set up yet." };
   const from = process.env.EMAIL_FROM ?? "Plotline <onboarding@resend.dev>";
   try {
     const { error } = await new Resend(key).emails.send(
-      { from, to: message.to, subject: message.subject, html: message.html, text: message.text },
+      { from, to: message.to, subject: message.subject, html: message.html, text: message.text, ...(message.replyTo ? { replyTo: message.replyTo } : {}) },
       message.idempotencyKey ? { idempotencyKey: message.idempotencyKey } : undefined,
     );
     if (error) {

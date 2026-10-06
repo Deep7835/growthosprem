@@ -14,6 +14,13 @@ export interface Change {
 
 export const CHANGELOG: Change[] = [
   {
+    id: "2026-10-06-analytics-support",
+    date: "2026-10-06",
+    tags: ["new", "improved"],
+    title: "Clearer analytics and a Support Center",
+    body: "Analytics has a platform menu, a Reports menu to download posts as a spreadsheet or save a PDF, Insights from the AI Copilot, a donut or bar view of each platform's share, and top posts as cards with their caption and a link to the post. Support Center in the sidebar searches help articles and sends us a ticket.",
+  },
+  {
     id: "2026-10-06-dashboard",
     date: "2026-10-06",
     tags: ["new", "improved"],

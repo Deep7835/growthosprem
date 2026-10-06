@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Breakdowns, Contribution, EngagementByPlatform, FollowerGrowth, Heatmap } from "@/components/analytics/charts";
+import { PlatformMenu, RangeMenu, ReportsMenu } from "@/components/analytics/Toolbar";
 import { ContentTable, Freshness, InsightsPanel, KpiTiles, TopContent } from "@/components/analytics/widgets";
+import { Icon } from "@/components/icons";
 import { EmptyState, buttonClass } from "@/components/ui";
 import { PLATFORM_COLOR } from "@/lib/analytics/colors";
 import { RANGES, type RangeDays } from "@/lib/analytics/report";
@@ -33,13 +35,13 @@ function periodText(start: string, end: string) {
   return `${f(start, false)} – ${f(end, true)}`;
 }
 
-function Pill({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+function Tab({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
       scroll={false}
-      aria-current={active ? "true" : undefined}
-      className={`flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-semibold ${active ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"}`}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center gap-1.5 border-b-2 px-1 pb-2 text-sm font-semibold ${active ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"}`}
     >
       {children}
     </Link>
@@ -102,66 +104,72 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps<
 
   return (
     <div className="mx-auto flex max-w-[1160px] flex-col gap-5 p-6 pb-14">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-4">
-          <h1 className="font-display text-2xl font-bold">Analytics</h1>
-          <nav aria-label="Analytics type" className="flex gap-0.5 rounded-lg bg-line-soft p-[3px]">
-            <Pill href={href({ tab: null })} active={tab === "organic"}>
-              Organic
-            </Pill>
-            <Pill href={href({ tab: "paid" })} active={tab === "paid"}>
-              Paid ads <span className="rounded border border-line px-1 text-[10px]">V2</span>
-            </Pill>
-          </nav>
-          {result.isDemo && (
-            <span className="rounded-full border border-dashed border-faint px-2.5 py-0.5 text-xs font-semibold text-muted">Sample data</span>
-          )}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-display text-2xl font-bold">Analytics</h1>
+            {result.isDemo && (
+              <span className="rounded-full border border-dashed border-faint px-2.5 py-0.5 text-xs font-semibold text-muted">Sample data</span>
+            )}
+          </div>
+          <Freshness updatedText={updatedText(result.updatedAt)} refresh={refreshAnalytics.bind(null, org, space)} />
         </div>
-        <Freshness updatedText={updatedText(result.updatedAt)} refresh={refreshAnalytics.bind(null, org, space)} />
+        <nav aria-label="Analytics type" className="flex gap-5 border-b border-line">
+          <Tab href={href({ tab: null })} active={tab === "organic"}>
+            <Icon name="chart" size={15} /> Organic
+          </Tab>
+          <Tab href={href({ tab: "paid" })} active={tab === "paid"}>
+            <Icon name="card" size={15} /> Paid ads <span className="rounded border border-line px-1 text-[10px]">V2</span>
+          </Tab>
+        </nav>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3">
-        <nav aria-label="Platform" className="flex gap-0.5 rounded-lg bg-ground p-[3px]">
-          <Pill href={href({ platform: null })} active={platform === "all"}>
-            All platforms
-          </Pill>
-          {ALL_PLATFORMS.filter((p) => connected.has(p)).map((p) => (
-            <Pill key={p} href={href({ platform: p })} active={platform === p}>
-              <span aria-hidden className="size-2 rounded-full" style={{ background: PLATFORM_COLOR[p] }} />
-              {PLATFORM_NAMES[p]}
-            </Pill>
-          ))}
-        </nav>
-        <span className="text-[13px] text-muted">
-          {connected.size} of {ALL_PLATFORMS.length} platforms connected
-        </span>
-        <span className="flex-1" />
-        <nav aria-label="Date range" className="flex gap-0.5 rounded-lg bg-ground p-[3px]">
-          {RANGES.map((r) => (
-            <Pill key={r} href={href({ range: r === 30 ? null : String(r) })} active={days === r}>
-              {r} days
-            </Pill>
-          ))}
-        </nav>
-        <span className="text-[13px] font-semibold">{periodText(report.range.start, report.range.end)}</span>
-        <Link href={href({ compare: compare ? "0" : null })} scroll={false} className="flex items-center gap-2 text-[13px]" role="switch" aria-checked={compare}>
-          <span className={`grid size-4 place-items-center rounded border ${compare ? "border-ink bg-ink text-white" : "border-faint"}`} aria-hidden>
-            {compare ? "✓" : ""}
+      {tab === "organic" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <PlatformMenu
+            current={platform}
+            options={[
+              { platform: "all", href: href({ platform: null }), connected: true },
+              ...ALL_PLATFORMS.map((p) => ({ platform: p, href: href({ platform: p }), connected: connected.has(p) })),
+            ]}
+          />
+          <span className="text-[13px] text-muted">
+            {connected.size} of {ALL_PLATFORMS.length} platforms active
           </span>
-          vs previous period
-        </Link>
-      </div>
+          <span className="flex-1" />
+          <Link href={`/o/${org}/ai?space=${space}&prompt=${encodeURIComponent(`Look at ${ctx.space.name}'s analytics for the last ${days} days. What's working, what isn't, and what should we post next?`)}`} className={`${buttonClass("ghost", "sm")} h-9 gap-1.5 text-accent-ink`}>
+            <Icon name="sparkles" size={15} /> Insights
+          </Link>
+          <ReportsMenu posts={report.posts} filename={`${ctx.space.slug}-posts-${report.range.start}-to-${report.range.end}.csv`} />
+          <RangeMenu period={periodText(report.range.start, report.range.end)} options={RANGES.map((r) => ({ days: r, href: href({ range: r === 30 ? null : String(r) }), active: days === r }))} />
+          <Link href={href({ compare: compare ? "0" : null })} scroll={false} className="flex h-9 items-center gap-2 rounded-lg px-2 text-[13px] hover:bg-subtle" role="switch" aria-checked={compare}>
+            <span className={`grid size-4 place-items-center rounded border ${compare ? "border-ink bg-ink text-white" : "border-faint"}`} aria-hidden>
+              {compare ? "✓" : ""}
+            </span>
+            vs previous period
+          </Link>
+        </div>
+      )}
 
       {tab === "paid" ? (
-        <EmptyState
-          title="No connected ad accounts"
-          body="Connect a Meta ad account to see spend, reach, CPM, CTR, CPC and results next to your organic numbers. Paid ads arrive in V2."
-          action={
-            <span className={`${buttonClass("primary")} cursor-not-allowed opacity-60`} aria-disabled>
-              Connect Meta ad account · V2
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface px-6 py-14 text-center">
+          <span className="grid size-12 place-items-center rounded-full bg-accent-bg text-accent-ink">
+            <Icon name="chart" size={22} />
+          </span>
+          <h2 className="text-xl font-semibold">No connected ad accounts</h2>
+          <p className="max-w-md text-sm text-muted">Connect a paid ads account to see spend, reach, CPM, CTR, CPC and results next to your organic numbers. Paid ads arrive in V2.</p>
+          <p className="mt-2 text-sm font-medium">Connect your ad account:</p>
+          <div className="flex w-full max-w-sm items-center gap-3 rounded-xl border border-line px-3 py-2.5 text-left">
+            <span className="grid size-8 place-items-center rounded-lg bg-data-bg text-sm font-bold text-data">∞</span>
+            <span className="flex-1">
+              <span className="block text-[11px] text-muted">Meta Ads</span>
+              <span className="text-sm text-muted">Not connected</span>
             </span>
-          }
-        />
+            <span className={`${buttonClass("primary", "sm")} cursor-not-allowed opacity-60`} aria-disabled>
+              Connect · V2
+            </span>
+          </div>
+        </div>
       ) : (
         <>
           {compare && !report.canCompare && (
@@ -169,6 +177,7 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps<
               No comparison for {days} days yet: history starts with the first import, so the previous {days} days aren’t available.
             </p>
           )}
+          <h2 className="-mb-2 text-[17px] font-semibold">Cross-platform overview</h2>
           <KpiTiles kpis={report.kpis} days={days} compare={compare && report.canCompare} />
           <InsightsPanel
             insights={report.insights}
@@ -236,6 +245,7 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps<
             })}
           </div>
 
+          <h2 className="-mb-2 text-[17px] font-semibold">Platform performance</h2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-4">
             <EngagementByPlatform platforms={report.platforms} />
             <Contribution contribution={report.contribution} />

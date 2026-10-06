@@ -10,6 +10,9 @@ export const BREAKDOWN_DAYS = 90;
 
 export interface ReportPost extends PostFact {
   accountId: string;
+  /** The start of the caption and the link to the post on the platform, for Top content. */
+  caption?: string;
+  permalink?: string | null;
   /** AI tags (PRD 9). */
   topic?: string | null;
   hookType?: string | null;
