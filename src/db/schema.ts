@@ -886,6 +886,50 @@ export const spaceMoments = pgTable(
 export const billingProvider = pgEnum("billing_provider", ["sample", "razorpay", "stripe"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "past_due", "canceled"]);
 
+export const inboxKind = pgEnum("inbox_kind", ["comment", "message"]);
+
+/** Inbox (beta): a comment on one of the space's posts (and the replies under it), or a conversation. */
+export const inboxThreads = pgTable(
+  "inbox_threads",
+  {
+    id: id(),
+    orgId: orgId(),
+    spaceId: uuid("space_id").notNull().references(() => spaces.id, { onDelete: "cascade" }),
+    socialAccountId: uuid("social_account_id").references(() => socialAccounts.id, { onDelete: "cascade" }),
+    platform: text("platform").$type<"instagram" | "facebook">().notNull(),
+    kind: inboxKind("kind").notNull().default("comment"),
+    // The top comment's id on the platform.
+    externalId: text("external_id").notNull(),
+    postId: uuid("post_id").references(() => posts.id, { onDelete: "set null" }),
+    participant: text("participant").notNull(),
+    preview: text("preview").notNull().default(""),
+    lastAt: timestamp("last_at", { withTimezone: true }).notNull(),
+    unread: boolean("unread").notNull().default(true),
+    done: boolean("done").notNull().default(false),
+    // Made by "Add sample conversations" (sample mode only).
+    sample: boolean("sample").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("inbox_threads_external").on(t.spaceId, t.platform, t.externalId), index("inbox_threads_space").on(t.spaceId, t.lastAt)],
+);
+
+export const inboxMessages = pgTable(
+  "inbox_messages",
+  {
+    id: id(),
+    orgId: orgId(),
+    threadId: uuid("thread_id").notNull().references(() => inboxThreads.id, { onDelete: "cascade" }),
+    externalId: text("external_id"),
+    // "out" is the account itself: a reply from Plotline or from the app.
+    direction: text("direction").$type<"in" | "out">().notNull(),
+    author: text("author").notNull(),
+    body: text("body").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    sentBy: uuid("sent_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [uniqueIndex("inbox_messages_external").on(t.threadId, t.externalId), index("inbox_messages_thread").on(t.threadId, t.sentAt)],
+);
+
 /** AI › Prompts: prompts a person saved to reuse with the AI Copilot. */
 export const aiPrompts = pgTable(
   "ai_prompts",

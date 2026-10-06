@@ -66,6 +66,34 @@ function historyFor(id: string, now: Date) {
     }));
 }
 
+const COMMENTS = [
+  ["@priya.eats", "Is this available for delivery in Saket? 😍"],
+  ["@rahulk", "What time do you open on Sunday?"],
+  ["@foodie_delhi", "Tried it yesterday, the cold coffee was 🔥"],
+  ["@ananya.s", "Do you take bookings for a birthday of 12 people?"],
+  ["@meera_bakes", "Price kitna hai? DM kar sakte ho?"],
+  ["@vik.travels", "Best café in the area, hands down."],
+] as const;
+
+/** A few comments per post, picked from the post's id so they don't change between syncs. */
+export function sampleComments(postId: string, platform: "instagram" | "facebook", at: Date) {
+  let seed = 0;
+  for (const ch of postId) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const n = 1 + (seed % 3);
+  return Array.from({ length: n }, (_, i) => {
+    const [author, text] = COMMENTS[(seed + i * 7) % COMMENTS.length];
+    const when = new Date(at.getTime() - ((seed % 40) + i * 5 + 2) * 3600_000);
+    const replied = (seed + i) % 4 === 0;
+    return {
+      externalId: `${postId}_c${i}`,
+      author: platform === "facebook" ? author.replace("@", "").replace(/[._]/g, " ") : author,
+      text,
+      at: when,
+      replies: replied ? [{ externalId: `${postId}_c${i}_r`, author: "you", text: "Thank you! See you soon ☕", at: new Date(when.getTime() + 3600_000) }] : [],
+    };
+  });
+}
+
 /** Numbers keep growing for a post's first three days, like the real thing. */
 function grown(n: number, publishedAt: Date, now: Date) {
   const age = Math.max(0, now.getTime() - publishedAt.getTime());
@@ -123,6 +151,16 @@ export function createFakeGraph(opts: { delayMs?: number; now?: () => Date } = {
         at: new Date(since.getTime() + (i + 1) * DAY),
         followers: Math.round(end * (0.925 + (0.075 * (i + 1)) / days)),
       }));
+    },
+
+    /** Sample comments, the same for a post every time; a few already have your reply. */
+    async listComments(platform, postId) {
+      await sleep(delay);
+      return sampleComments(postId, platform, now());
+    },
+    async replyToComment(_platform, commentId) {
+      await sleep(delay);
+      return { id: `${commentId}_reply_${Math.floor(now().getTime() / 1000)}` };
     },
 
     /**

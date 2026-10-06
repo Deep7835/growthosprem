@@ -64,6 +64,15 @@ export interface ImportedPost {
   permalink: string | null;
 }
 
+/** A comment on a post, with the replies under it (the Inbox). */
+export interface ImportedComment {
+  externalId: string;
+  author: string;
+  text: string;
+  at: Date;
+  replies: { externalId: string; author: string; text: string; at: Date }[];
+}
+
 export interface PostNumbers {
   reach: number;
   views: number;
@@ -117,6 +126,10 @@ export interface Graph {
   followerHistory(platform: "instagram" | "facebook", id: string, token: string, since: Date): Promise<{ at: Date; followers: number }[]>;
   /** Publishes one placement (PB-08). Throws GraphError with Meta's reason on failure. */
   publish(req: PublishRequest, step: PublishStep): Promise<PublishResult>;
+  /** The latest comments on one post, newest first, with their replies (the Inbox). */
+  listComments(platform: "instagram" | "facebook", postId: string, token: string): Promise<ImportedComment[]>;
+  /** Replies publicly to a comment as the account; returns the reply's id. */
+  replyToComment(platform: "instagram" | "facebook", commentId: string, message: string, token: string): Promise<{ id: string }>;
 }
 
 type Fetch = typeof fetch;
@@ -305,6 +318,33 @@ export function createGraph(
       }
       const r = await get<{ name: string; followers_count?: number; fan_count?: number }>(id, { access_token: token, fields: "name,followers_count,fan_count" });
       return { handle: r.name, name: r.name, followers: r.followers_count ?? r.fan_count ?? null };
+    },
+
+    async listComments(platform, postId, token) {
+      if (platform === "instagram") {
+        type C = { id: string; text?: string; username?: string; timestamp: string; replies?: { data?: { id: string; text?: string; username?: string; timestamp: string }[] } };
+        const r = await get<Paged<C>>(`${postId}/comments`, { access_token: token, fields: "id,text,username,timestamp,replies{id,text,username,timestamp}", limit: "50" });
+        return r.data.map((c) => ({
+          externalId: c.id,
+          author: c.username ? `@${c.username}` : "Instagram user",
+          text: c.text ?? "",
+          at: new Date(c.timestamp),
+          replies: (c.replies?.data ?? []).map((x) => ({ externalId: x.id, author: x.username ? `@${x.username}` : "Instagram user", text: x.text ?? "", at: new Date(x.timestamp) })),
+        }));
+      }
+      type F = { id: string; message?: string; from?: { name?: string }; created_time: string; comments?: { data?: { id: string; message?: string; from?: { name?: string }; created_time: string }[] } };
+      const r = await get<Paged<F>>(`${postId}/comments`, { access_token: token, fields: "id,message,from{name},created_time,comments{id,message,from{name},created_time}", order: "reverse_chronological", limit: "50" });
+      return r.data.map((c) => ({
+        externalId: c.id,
+        author: c.from?.name ?? "Facebook user",
+        text: c.message ?? "",
+        at: new Date(c.created_time),
+        replies: (c.comments?.data ?? []).map((x) => ({ externalId: x.id, author: x.from?.name ?? "Facebook user", text: x.message ?? "", at: new Date(x.created_time) })),
+      }));
+    },
+
+    async replyToComment(platform, commentId, message, token) {
+      return send<{ id: string }>(platform === "instagram" ? `${commentId}/replies` : `${commentId}/comments`, { access_token: token, message });
     },
 
     async listPosts(platform, id, token, since) {

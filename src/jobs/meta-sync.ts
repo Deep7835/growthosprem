@@ -10,6 +10,7 @@ import { GraphError, type Graph } from "@/lib/meta/graph";
 import { titleFromCaption, tokenStatus } from "@/lib/meta/health";
 import { PLATFORM_NAMES } from "@/lib/placements";
 import { deliver, spaceManagers } from "@/notifications/deliver";
+import { storeComments } from "@/inbox/core";
 import { enqueue, PermanentError, PRIORITY, prune } from "./queue";
 
 export const JOB = { import: "meta.import", sync: "meta.sync", health: "meta.token_health" } as const;
@@ -174,6 +175,19 @@ export async function syncAccount(deps: SyncDeps, accountId: string, mode: "impo
       });
       done++;
       if (done % 5 === 0 || done === due.length) await progress(done, due.length);
+    }
+
+    // Inbox (beta): comments on the last two weeks' posts. A failure here never fails the sync.
+    for (const p of list.filter((x) => x.publishedAt.getTime() >= now.getTime() - 14 * DAY).slice(0, 12)) {
+      try {
+        const comments = await deps.graph.listComments(platform, p.externalId, token);
+        await scoped(async (tx) => {
+          const [row] = await tx.select({ id: posts.id }).from(posts).where(and(eq(posts.socialAccountId, account.id), eq(posts.externalId, p.externalId)));
+          await storeComments(tx, { id: account.id, orgId: account.orgId, spaceId: account.spaceId, platform, handle: profile.handle, name: profile.name }, row?.id ?? null, comments);
+        });
+      } catch (e) {
+        if (e instanceof GraphError && e.needsReconnect) throw e;
+      }
     }
 
     const today = isoDate(zonedParts(now, timezone));

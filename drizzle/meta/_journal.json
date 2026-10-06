@@ -295,6 +295,20 @@
       "when": 1791306489157,
       "tag": "0041_rls_ai_workflows",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791307605121,
+      "tag": "0042_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791307614122,
+      "tag": "0043_rls_inbox",
+      "breakpoints": true
     }
   ]
 }

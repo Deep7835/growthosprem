@@ -358,6 +358,19 @@ drizzle/                  SQL migrations
   open on their own), Esc closes. Results come back in about 30–60 ms on the sample data.
 - Not yet: search inside media by AI description (SR-04, V2); a trigram index for large workspaces.
 
+### Inbox (beta, `/o/[org]/s/[space]/inbox`)
+
+- Comments on the space's Instagram and Facebook posts from the last two weeks come in with each account sync
+  (`src/inbox/core.ts`, Graph `listComments`), one thread per comment with its replies; the account's own replies show
+  as outgoing and are never threads of their own. New comments in a thread mark it unread and reopen it if it was done.
+- Reply publicly from Plotline (Graph `replyToComment`: Instagram `/{comment}/replies`, Facebook `/{comment}/comments`);
+  people who can publish in the space can reply. Mark done and reopen; filter by All, Messages and Comments, Open or
+  Done, and search. The Inbox tab sits on the space (not projects) with a Beta label.
+- Direct messages are not connected: they need Meta's messaging permissions, which the Meta app doesn't have yet, and
+  the Messages filter says so.
+- Sample mode (development): "Add sample conversations" puts sample comments on recent posts; replies to them stay in
+  Plotline and say so.
+
 ### Post window (content panel, PRD CT-12, SH-02, ST-01)
 
 - Header in a warm tint with the space and project, "Repurposed group" when it has one, and Share, Repurpose, the

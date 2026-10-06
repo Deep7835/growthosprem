@@ -14,6 +14,13 @@ export interface Change {
 
 export const CHANGELOG: Change[] = [
   {
+    id: "2026-10-06-inbox",
+    date: "2026-10-06",
+    tags: ["new"],
+    title: "Inbox (beta): answer comments from Plotline",
+    body: "Each space has an Inbox with the comments on its recent Instagram and Facebook posts. Reply without leaving Plotline, mark conversations done, and search them. Direct messages come later, once Meta grants messaging access.",
+  },
+  {
     id: "2026-10-06-ai-tools",
     date: "2026-10-06",
     tags: ["new"],

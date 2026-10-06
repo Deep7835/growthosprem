@@ -10,6 +10,7 @@ const TABS = [
   ["table", "Table"],
   ["calendar", "Calendar"],
   ["previews", "Previews"],
+  ["inbox", "Inbox"],
   ["notes", "Notes"],
 ] as const;
 
@@ -83,15 +84,18 @@ export function SpaceTabs({
     <div className="flex flex-wrap items-center justify-between gap-2">
       <nav aria-label="Views" className="flex gap-1 overflow-x-auto">
         {TABS.map(([slug, label]) => {
-          const active = pathname === `${root}/${slug}`;
+          // The Inbox is the space's, not a project's.
+          const target = slug === "inbox" ? `${base}/inbox` : `${root}/${slug}`;
+          const active = pathname === target;
           return (
             <Link
               key={slug}
-              href={`${root}/${slug}`}
+              href={target}
               aria-current={active ? "page" : undefined}
               className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold ${active ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"}`}
             >
               {label}
+              {slug === "inbox" && <sup className="ml-0.5 text-[9px] font-bold uppercase text-accent-ink">Beta</sup>}
             </Link>
           );
         })}
