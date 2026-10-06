@@ -3,6 +3,7 @@
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { switchDevUser } from "@/app/actions/dev";
+import { dummySignOut } from "@/app/actions/dummy-auth";
 import { Icon } from "@/components/icons";
 import { Popover } from "@/components/Popover";
 import { Avatar } from "@/components/ui";
@@ -17,6 +18,7 @@ export function TopBar({
   user,
   role,
   devUsers,
+  clerk,
   trialDaysLeft,
   billing,
   bell,
@@ -26,6 +28,8 @@ export function TopBar({
   role: keyof typeof ROLE_LABEL;
   /** Empty unless AUTH_MODE=dev; then the menu switches between seeded users. */
   devUsers: { email: string; name: string }[];
+  /** Clerk's own account menu; otherwise ours, with Log out for the dummy sign-in. */
+  clerk: boolean;
   trialDaysLeft: number | null;
   /** UI2-01: the trial or plan badge, which opens Billing. */
   billing?: { phase: string; planName: string };
@@ -71,7 +75,7 @@ export function TopBar({
                 : `${billing.planName} plan`}
         </Link>
       )}
-      {devUsers.length === 0 ? (
+      {clerk ? (
         <span className="grid size-8 place-items-center" title={`${user.name} · ${ROLE_LABEL[role]}`}>
           <UserButton />
         </span>
@@ -88,20 +92,33 @@ export function TopBar({
               <p className="px-1 pb-2 text-[13px] text-muted">
                 {user.email} · {ROLE_LABEL[role]}
               </p>
-              <p className="mb-1 border-t border-line-soft px-1 pt-2 text-xs font-semibold uppercase tracking-wider text-muted">Development: sign in as</p>
-              <form action={switchDevUser} className="flex flex-col gap-0.5">
-                {devUsers.map((u) => (
-                  <button
-                    key={u.email}
-                    name="email"
-                    value={u.email}
-                    type="submit"
-                    className={`rounded-lg px-2 py-2 text-left text-sm hover:bg-subtle ${u.email === user.email ? "font-semibold" : ""}`}
-                  >
-                    {u.name} <span className="text-muted">· {u.email}</span>
+              <Link href={`/o/${orgSlug}/settings/profile`} className="flex rounded-lg px-2 py-2 text-sm hover:bg-subtle">
+                Profile and settings
+              </Link>
+              {devUsers.length > 0 ? (
+                <>
+                  <p className="mb-1 border-t border-line-soft px-1 pt-2 text-xs font-semibold uppercase tracking-wider text-muted">Development: sign in as</p>
+                  <form action={switchDevUser} className="flex flex-col gap-0.5">
+                    {devUsers.map((u) => (
+                      <button
+                        key={u.email}
+                        name="email"
+                        value={u.email}
+                        type="submit"
+                        className={`rounded-lg px-2 py-2 text-left text-sm hover:bg-subtle ${u.email === user.email ? "font-semibold" : ""}`}
+                      >
+                        {u.name} <span className="text-muted">· {u.email}</span>
+                      </button>
+                    ))}
+                  </form>
+                </>
+              ) : (
+                <form action={dummySignOut} className="border-t border-line-soft pt-1">
+                  <button type="submit" className="flex w-full rounded-lg px-2 py-2 text-left text-sm hover:bg-subtle">
+                    Log out
                   </button>
-                ))}
-              </form>
+                </form>
+              )}
             </div>
           )}
         </Popover>

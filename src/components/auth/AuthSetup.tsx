@@ -12,7 +12,7 @@ export function AuthSetup() {
       </pre>
       <p className="text-sm leading-relaxed text-muted">
         Get them from the Clerk dashboard under API keys, or run <code className="rounded bg-ground px-1">npx clerk@latest init</code> to create
-        development keys. To try the app without Clerk, set <code className="rounded bg-ground px-1">AUTH_MODE=dev</code>.
+        development keys. To try the app without Clerk, set <code className="rounded bg-ground px-1">AUTH_MODE=dummy</code> for a temporary email-only sign-in, or <code className="rounded bg-ground px-1">AUTH_MODE=dev</code> to switch between the seeded users.
       </p>
     </div>
   );

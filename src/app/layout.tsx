@@ -1,7 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
-import { clerkEnabled } from "@/lib/auth-config";
+import { authMode } from "@/lib/auth-config";
 import "./globals.css";
 
 const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full font-sans">{children}</body>
     </html>
   );
-  if (!clerkEnabled) return page;
+  if (authMode() !== "clerk") return page;
   return (
     <ClerkProvider appearance={clerkAppearance} signInUrl="/sign-in" signUpUrl="/sign-up" afterSignOutUrl="/sign-in">
       {page}

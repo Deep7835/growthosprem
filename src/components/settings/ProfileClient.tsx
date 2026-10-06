@@ -1,6 +1,8 @@
 "use client";
 
 import { useClerk } from "@clerk/nextjs";
+import { dummySignOut } from "@/app/actions/dummy-auth";
+import type { AuthMode } from "@/lib/auth-config";
 import { useState, useTransition } from "react";
 import { toast } from "@/components/Toaster";
 import { buttonClass } from "@/components/ui";
@@ -128,7 +130,7 @@ function ClerkAccount() {
 export function ProfileClient(props: {
   name: string;
   email: string;
-  clerk: boolean;
+  account: AuthMode;
   colorBy: "platform" | "status";
   weekStart: 0 | 6;
   saveName: (v: string) => Promise<SettingsResult>;
@@ -143,7 +145,22 @@ export function ProfileClient(props: {
         <CalendarPrefs colorBy={props.colorBy} weekStart={props.weekStart} save={props.savePrefs} />
       </Section>
       <Section title="Account and security" body={`You sign in as ${props.email}.`}>
-        {props.clerk ? <ClerkAccount /> : <p className="rounded-lg bg-subtle px-3 py-2.5 text-sm text-muted">This is a development sign-in. Email, password and two-step verification are managed by the sign-in provider once it’s connected.</p>}
+        {props.account === "clerk" ? (
+          <ClerkAccount />
+        ) : props.account === "dummy" ? (
+          <div className="flex flex-col gap-3">
+            <p className="rounded-lg bg-subtle px-3 py-2.5 text-sm text-muted">
+              You’re using the temporary sign-in, which has no password or email check. Passwords and two-step verification come with the real sign-in.
+            </p>
+            <form action={dummySignOut}>
+              <button type="submit" className={`${buttonClass("secondary")} h-10 w-full`}>
+                Log out
+              </button>
+            </form>
+          </div>
+        ) : (
+          <p className="rounded-lg bg-subtle px-3 py-2.5 text-sm text-muted">This is a development sign-in. Email, password and two-step verification are managed by the sign-in provider once it’s connected.</p>
+        )}
       </Section>
     </div>
   );

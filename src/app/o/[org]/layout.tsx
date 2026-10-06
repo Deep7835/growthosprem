@@ -13,7 +13,7 @@ import { SIDEBAR_COOKIE } from "@/lib/shell";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { markRead } from "./notifications/actions";
 import { TopBar } from "@/components/shell/TopBar";
-import { listDevUsers } from "@/server/session";
+import { authMode, listDevUsers } from "@/server/session";
 import { getOrgContext, listArchivedSpaces, listVisibleSpaces } from "@/server/tenancy";
 
 export default async function OrgLayout({ children, params }: LayoutProps<"/o/[org]">) {
@@ -43,6 +43,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/o/[o
       user={ctx.user}
       role={ctx.role}
       devUsers={devUsers}
+      clerk={authMode() === "clerk"}
       trialDaysLeft={ctx.trialDaysLeft}
       billing={{ phase: ctx.billing.phase, planName: PLANS[ctx.billing.plan].name }}
       bell={

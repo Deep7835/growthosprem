@@ -1,4 +1,5 @@
 import { SignOutButton } from "@clerk/nextjs";
+import { dummySignOut } from "@/app/actions/dummy-auth";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSystemDb } from "@/db";
@@ -95,6 +96,14 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
               Sign out and switch account
             </button>
           </SignOutButton>
+        )}
+        {authMode() === "dummy" && (
+          <form action={dummySignOut}>
+            <input type="hidden" name="next" value={`/invite/${token}`} />
+            <button type="submit" className={`${buttonClass("secondary")} h-11 w-full`}>
+              Sign out and switch account
+            </button>
+          </form>
         )}
       </Frame>
     );

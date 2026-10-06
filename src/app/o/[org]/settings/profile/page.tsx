@@ -1,6 +1,6 @@
 import { ProfileClient } from "@/components/settings/ProfileClient";
 import { SettingsHeading, settingsPage } from "@/components/settings/SettingsWindow";
-import { clerkEnabled } from "@/lib/auth-config";
+import { authMode } from "@/lib/auth-config";
 import { getOrgContext } from "@/server/tenancy";
 import { setCalendarPrefs } from "../../calendar-actions";
 import { saveDisplayName } from "../actions";
@@ -16,7 +16,7 @@ export default async function ProfilePage({ params }: PageProps<"/o/[org]/settin
       <ProfileClient
         name={ctx.user.name}
         email={ctx.user.email}
-        clerk={clerkEnabled}
+        account={authMode()}
         colorBy={ctx.user.preferences.calendarColor ?? "platform"}
         weekStart={ctx.user.preferences.weekStartsOn ?? 0}
         saveName={saveDisplayName.bind(null, org)}

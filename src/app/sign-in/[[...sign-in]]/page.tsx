@@ -1,7 +1,8 @@
 import { SignIn } from "@clerk/nextjs";
 import { AuthSetup } from "@/components/auth/AuthSetup";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { clerkEnabled } from "@/lib/auth-config";
+import { DummySignIn } from "@/components/auth/DummySignIn";
+import { authMode } from "@/lib/auth-config";
 import { safeRedirect } from "@/lib/safe-redirect";
 
 export const metadata = { title: "Sign in" };
@@ -11,7 +12,9 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in/[
   const next = safeRedirect((await searchParams).redirect_url);
   return (
     <AuthShell>
-      {clerkEnabled ? (
+      {authMode() === "dummy" ? (
+        <DummySignIn kind="sign-in" next={next} needsPassword={Boolean(process.env.DUMMY_PASSWORD)} />
+      ) : authMode() === "clerk" ? (
         <SignIn
           fallbackRedirectUrl="/"
           signUpFallbackRedirectUrl="/onboarding"
