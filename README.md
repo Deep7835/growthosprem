@@ -157,6 +157,14 @@ drizzle/                  SQL migrations
   motion stops for people who ask for reduced motion.
 - Copy describes only what the product does today; illustrations are labelled as samples; no customer logos,
   testimonials or usage numbers.
+- Published on its own to Cloudflare Workers as static files: `site/` is a tiny Next.js app (`output: "export"`) that
+  renders the same components, and `wrangler.jsonc` builds it (`npm run build:site`) and uploads `site/out`. Pushing to
+  main deploys it through Workers Builds (Worker `growthosprem`; deploy command `npx wrangler deploy`). Sign in and
+  Start free lead to an "opening soon" page (`/start`) until `PLOTLINE_APP_URL` is set in the Cloudflare build variables.
+  Try it locally with `npx wrangler dev`.
+- The app itself can't run on Workers as it is (sharp, PGlite on disk, media on disk, the always-on job worker); it
+  needs a Node host or a port to Hyperdrive, R2, Cloudflare Images and Cron Triggers. Postgres will be Neon
+  (Singapore).
 
 ### AI tagging of posts (PRD 9, AN-07)
 

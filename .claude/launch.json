@@ -18,6 +18,18 @@
         "dev:roles"
       ],
       "port": 3000
+    },
+    {
+      "name": "plotline-site",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--yes",
+        "wrangler@4",
+        "dev",
+        "--port",
+        "8787"
+      ],
+      "port": 8787
     }
   ]
 }

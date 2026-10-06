@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SIGN_UP } from "./links";
 import { DRAFT_PRICES, EXTRA_SEAT, MONTHS_PER_YEAR_BILLED, PLAN_IDS, PLANS, type Currency, type Interval, type PlanId } from "@/lib/billing/plans";
 
 const money = (n: number, c: Currency) => new Intl.NumberFormat(c === "INR" ? "en-IN" : "en-US", { style: "currency", currency: c, maximumFractionDigits: 0 }).format(n);
@@ -76,7 +77,7 @@ export function Pricing() {
               </li>
             ))}
           </ul>
-          <Link href="/sign-up" className="mt-7 flex h-14 items-center justify-center rounded-full bg-[#0a0a0a] text-[17px] font-semibold text-white transition-transform hover:scale-[1.02]">
+          <Link href={SIGN_UP} className="mt-7 flex h-14 items-center justify-center rounded-full bg-[#0a0a0a] text-[17px] font-semibold text-white transition-transform hover:scale-[1.02]">
             Start free · {p.name}
           </Link>
           <p className="mt-4 text-center text-xs text-black/45">

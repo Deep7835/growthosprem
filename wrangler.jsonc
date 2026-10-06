@@ -1,0 +1,10 @@
+// Cloudflare Workers Builds deploys the marketing site only, as static files. The app needs a
+// Node server with Postgres, disk or R2 storage and a background worker, so it's hosted
+// separately. The name must match the Worker set up in the Cloudflare dashboard.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "growthosprem",
+  "compatibility_date": "2026-10-06",
+  "build": { "command": "npm run build:site" },
+  "assets": { "directory": "./site/out", "not_found_handling": "404-page" }
+}

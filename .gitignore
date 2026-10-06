@@ -48,3 +48,9 @@ next-env.d.ts
 
 # Clerk keyless development keys
 /.clerk/
+
+# standalone site build
+/site/.next/
+/site/out/
+/site/next-env.d.ts
+/.wrangler/

@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import Link from "next/link";
 import { Faq } from "./Faq";
 import { HeroApp } from "./HeroApp";
+import { SIGN_IN, SIGN_UP } from "./links";
 import { MotionLayer } from "./MotionLayer";
 import { Logo, Nav } from "./Nav";
 import { Pricing } from "./Pricing";
@@ -10,6 +12,13 @@ import { Scenarios } from "./Scenarios";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["italic"], variable: "--font-serif", display: "swap" });
+
+/** Shared by the app's home page and the standalone site (site/). */
+export const landingMetadata: Metadata = {
+  title: { absolute: "Plotline · Social media workspace for agencies and brands" },
+  description:
+    "Plan, create, approve, publish and grow every client’s Instagram and Facebook from one workspace, with an AI Copilot that reads your real numbers. Hinglish captions, festival calendar and GST invoices built in.",
+};
 
 /* ---------- Building blocks ---------- */
 
@@ -233,7 +242,7 @@ export function Landing() {
             Calendars, client approvals, publishing and results for every brand you run. Press <span className="lx-key">⌘K</span> to find anything, ask the AI Copilot for next week, and post to Instagram and Facebook on time.
           </p>
           <div className="lx-pop mt-9" style={{ animationDelay: "520ms" }}>
-            <Link href="/sign-up" className="group lx-sheen inline-flex h-14 items-center gap-2.5 rounded-full bg-[#0a0a0a] px-8 text-[17px] font-semibold text-white shadow-[0_20px_40px_-12px_rgb(0_0_0_/_0.5)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-[1.03] active:scale-[0.98]">
+            <Link href={SIGN_UP} className="group lx-sheen inline-flex h-14 items-center gap-2.5 rounded-full bg-[#0a0a0a] px-8 text-[17px] font-semibold text-white shadow-[0_20px_40px_-12px_rgb(0_0_0_/_0.5)] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-[1.03] active:scale-[0.98]">
               Start free · 14 days
               <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
             </Link>
@@ -500,7 +509,7 @@ export function Landing() {
             </h2>
             <p className="max-w-lg text-[18px] text-black/65">Connect Instagram and Facebook, get a first audit from your last 90 days, and a month of posts ready to approve.</p>
             <div className="flex flex-wrap justify-center gap-3">
-              <Link href="/sign-up" className="lx-sheen inline-flex h-14 items-center rounded-full bg-[#0a0a0a] px-8 text-[17px] font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 hover:scale-[1.03] active:scale-[0.98]">
+              <Link href={SIGN_UP} className="lx-sheen inline-flex h-14 items-center rounded-full bg-[#0a0a0a] px-8 text-[17px] font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 hover:scale-[1.03] active:scale-[0.98]">
                 Start free · 14 days
               </Link>
               <a href="#pricing" className="inline-flex h-14 items-center rounded-full bg-white px-8 text-[17px] font-semibold text-[#9a3d06] transition-transform duration-300 hover:-translate-y-0.5 hover:scale-[1.03] active:scale-[0.98]">
@@ -524,7 +533,7 @@ export function Landing() {
             {[
               ["Product", [["#moments", "Use cases"], ["#how", "How it works"], ["#features", "Features"], ["#pricing", "Pricing"]]],
               ["Help", [["#faq", "FAQ"]]],
-              ["Account", [["/sign-in", "Sign in"], ["/sign-up", "Start free"]]],
+              ["Account", [[SIGN_IN, "Sign in"], [SIGN_UP, "Start free"]]],
             ].map(([title, links]) => (
               <div key={title as string} className="flex flex-col gap-2.5">
                 <b>{title as string}</b>

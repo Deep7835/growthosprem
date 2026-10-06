@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SIGN_IN, SIGN_UP } from "./links";
 
 const LINKS = [
   ["#moments", "Use cases"],
@@ -37,10 +38,10 @@ export function Nav() {
               </a>
             ))}
           </div>
-          <Link href="/sign-in" className="ml-auto hidden rounded-full px-3 py-1.5 text-sm text-white/70 hover:text-white md:inline">
+          <Link href={SIGN_IN} className="ml-auto hidden rounded-full px-3 py-1.5 text-sm text-white/70 hover:text-white md:inline">
             Sign in
           </Link>
-          <Link href="/sign-up" className="ml-auto inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-black transition-transform hover:scale-[1.03] md:ml-0">
+          <Link href={SIGN_UP} className="ml-auto inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-black transition-transform hover:scale-[1.03] md:ml-0">
             Start free
           </Link>
           <button type="button" aria-expanded={open} aria-controls="site-menu" onClick={() => setOpen((o) => !o)} className="grid size-10 place-items-center rounded-full hover:bg-white/10 md:hidden">
@@ -53,7 +54,7 @@ export function Nav() {
         <div id="site-menu" className={`grid transition-all duration-300 md:hidden ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
           <div className="overflow-hidden">
             <div className="flex flex-col px-3 pb-3">
-              {[...LINKS, ["/sign-in", "Sign in"] as const].map(([href, label]) => (
+              {[...LINKS, [SIGN_IN, "Sign in"] as const].map(([href, label]) => (
                 <a key={href} href={href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-[15px] text-white/80 hover:bg-white/10">
                   {label}
                 </a>
