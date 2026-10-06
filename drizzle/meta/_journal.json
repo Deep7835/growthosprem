@@ -225,6 +225,20 @@
       "when": 1791230073165,
       "tag": "0031_post_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791299031592,
+      "tag": "0032_org_branding_tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791299046132,
+      "tag": "0033_rls_org_tags",
+      "breakpoints": true
     }
   ]
 }

@@ -44,19 +44,19 @@ async function scopeFor(org: string, scope: string) {
 export async function savePreferences(org: string, scope: string, types: unknown) {
   const { ctx } = await scopeFor(org, scope);
   await saveTypes(ctx, scope, cleanPrefs(types));
-  revalidatePath(`/o/${org}/notifications/settings`);
+  revalidatePath(`/o/${org}/settings/notifications`);
 }
 
 export async function followDefaults(org: string, spaceId: string) {
   const { ctx } = await scopeFor(org, spaceId);
   await resetToDefault(ctx, spaceId);
-  revalidatePath(`/o/${org}/notifications/settings`);
+  revalidatePath(`/o/${org}/settings/notifications`);
 }
 
 export async function applyToOtherSpaces(org: string, spaceId: string) {
   const { ctx, visible } = await scopeFor(org, spaceId);
   await applyToSpaces(ctx, spaceId, visible);
-  revalidatePath(`/o/${org}/notifications/settings`);
+  revalidatePath(`/o/${org}/settings/notifications`);
 }
 
 export async function setDigest(org: string, on: boolean, timeZone: string) {
@@ -68,7 +68,7 @@ export async function setDigest(org: string, on: boolean, timeZone: string) {
     zone = "Asia/Kolkata";
   }
   await saveDigest(ctx, z.boolean().parse(on), zone);
-  revalidatePath(`/o/${org}/notifications/settings`);
+  revalidatePath(`/o/${org}/settings/notifications`);
 }
 
 /* ---------- Browser push (NT-03) ---------- */

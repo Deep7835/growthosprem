@@ -103,7 +103,7 @@ export function BillingClient(props: {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-display text-3xl font-bold">Billing</h1>
+        <h1 className="text-xl font-semibold">Billing</h1>
         <p className="text-sm text-muted">Priced per active space, with seats included in each. Archived spaces aren’t billed.</p>
       </div>
 

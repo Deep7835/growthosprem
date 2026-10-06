@@ -1,3 +1,4 @@
+import { settingsPage } from "@/components/settings/SettingsWindow";
 import { BillingClient } from "@/components/billing/BillingClient";
 import { loadBilling } from "@/server/billing";
 import { getOrgContext } from "@/server/tenancy";
@@ -14,7 +15,7 @@ export default async function BillingPage({ params }: PageProps<"/o/[org]/settin
   }
   const view = await loadBilling(ctx);
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 pb-14">
+    <div className={settingsPage}>
       <BillingClient
         org={org}
         isOwner={ctx.role === "owner"}

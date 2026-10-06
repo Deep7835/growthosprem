@@ -86,7 +86,7 @@ async function budgetAlert(tx: Tx, orgId: string) {
     kind: "ai_budget",
     title: level === 100 ? "This month’s AI budget is used up" : "80% of this month’s AI budget is used",
     body: `${used.toLocaleString("en-IN")} of ${org.budget.toLocaleString("en-IN")} credits. ${level === 100 ? "AI features pause until next month unless you raise the budget." : "Raise the budget in AI settings if you need more."}`,
-    href: `/o/${org.slug}/ai/settings`,
+    href: `/o/${org.slug}/settings/ai`,
     key: `ai_budget:${orgId}:${month}:${level}`,
   });
 }

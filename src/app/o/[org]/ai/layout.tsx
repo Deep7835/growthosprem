@@ -34,7 +34,7 @@ export default async function AiLayout({ children, params }: LayoutProps<"/o/[or
             {s.name}
           </Link>
         ))}
-        <Link href={`${base}/settings`} className="mt-4 rounded-lg px-2 py-2 text-ink-2 hover:bg-subtle">
+        <Link href={`/o/${org}/settings/ai`} className="mt-4 rounded-lg px-2 py-2 text-ink-2 hover:bg-subtle">
           AI settings
         </Link>
       </nav>

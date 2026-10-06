@@ -1,4 +1,5 @@
 import { PanelHost } from "@/components/content/PanelHost";
+import { tagSuggestions } from "@/server/org-settings";
 import { ContentTable } from "@/components/table/ContentTable";
 import { ViewToggle } from "@/components/tasks/bits";
 import { TaskPanelHost, withoutTask } from "@/components/tasks/TaskPanelHost";
@@ -40,7 +41,7 @@ export async function TableView({ ctx, query }: { ctx: SpaceContext; query: Quer
     );
   }
 
-  const data = await loadTable(ctx);
+  const [data, tagOptions] = await Promise.all([loadTable(ctx), tagSuggestions(ctx.org.id)]);
   const now = zonedParts(new Date(ctx.requestTime), ctx.space.timezone);
   const saved = ctx.user.preferences.tables?.[ctx.space.id] ?? {};
   // In a project the rows are already that project's, so a saved project filter doesn't apply.
@@ -64,6 +65,7 @@ export async function TableView({ ctx, query }: { ctx: SpaceContext; query: Quer
         edit={editCell.bind(null, org, space)}
         bulk={bulkAction.bind(null, org, space)}
         saveView={saveTableView.bind(null, org, space)}
+        tagOptions={tagOptions}
       />
       <PanelHost ctx={ctx} org={org} space={space} contentId={typeof query.content === "string" ? query.content : null} closeHref={base} />
       {taskPanel}

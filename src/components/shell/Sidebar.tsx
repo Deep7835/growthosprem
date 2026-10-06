@@ -236,36 +236,14 @@ export function Sidebar({
         <div className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line px-3">
           <span className="grid size-7 shrink-0 place-items-center rounded-md bg-accent text-sm font-bold text-ink">{orgName[0]}</span>
           <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{orgName}</span>
-          <Popover
-            label="Organisation settings"
-            buttonClassName="grid size-8 place-items-center rounded-md text-muted hover:bg-line-soft hover:text-ink aria-expanded:bg-line-soft aria-expanded:text-ink"
-            panelClassName="right-0 top-full mt-1 w-56"
-            button={<Icon name="gear" />}
+          <Link
+            href={`${base}/settings/general`}
+            aria-label="Settings"
+            title="Settings"
+            className="grid size-8 place-items-center rounded-md text-muted hover:bg-line-soft hover:text-ink"
           >
-            {(close) => (
-              <div className="flex flex-col" onClick={close}>
-                <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">Organisation</p>
-                <Link href={`${base}/settings/members`} className={menuItem}>
-                  <Icon name="users" /> Members
-                </Link>
-                {canManageSpaces && (
-                  <>
-                    <Link href={`${base}/settings/spaces`} className={menuItem}>
-                      <Icon name="board" /> Spaces
-                    </Link>
-                    <Link href={`${base}/settings/billing`} className={menuItem}>
-                      <Icon name="card" /> Billing
-                    </Link>
-                  </>
-                )}
-                <div className="my-1 h-px bg-line-soft" />
-                <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">You</p>
-                <Link href={`${base}/notifications/settings`} className={menuItem}>
-                  <Icon name="bell" /> Notification settings
-                </Link>
-              </div>
-            )}
-          </Popover>
+            <Icon name="gear" />
+          </Link>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-3">
@@ -342,7 +320,7 @@ export function Sidebar({
               <Icon name="plus" /> Create social space
             </Link>
           )}
-          <NavItem href={`${base}/settings/members`} icon="userPlus" active={pathname.startsWith(`${base}/settings/members`)}>
+          <NavItem href={`${base}/settings/members${canInvite ? "?invite=1" : ""}`} icon="userPlus" active={false}>
             {canInvite ? "Invite members" : "Members"}
           </NavItem>
         </div>

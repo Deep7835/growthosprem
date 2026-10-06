@@ -292,7 +292,28 @@ drizzle/                  SQL migrations
   `NEXT_PUBLIC_AFFILIATE_URL` are set, and Install app (a web app manifest at `src/app/manifest.ts` with icons in
   `public/icons`); browsers that don't offer installing get a short how-to instead.
 - Short messages in the corner (`toast()` from `src/components/Toaster.tsx`), for example when a Board move fails.
-- Not yet: Support Center (phase 5), settings in one window (phase 2).
+- Not yet: Support Center (phase 5).
+
+### Settings window
+
+- The sidebar gear opens settings as one window over the app (`src/components/settings/SettingsFrame.tsx`); every page
+  keeps its own URL, Esc or × returns to the page you came from, and phones get the sections as a menu. Left: Profile
+  (Profile, Notifications), Organisation (General, Members, Spaces, Tags, Branding, Billing, AI usage; Spaces,
+  Branding, Billing and AI usage for Owners and Admins) and each social space with a search box.
+- Profile: display name, calendar preferences (first day of the week, colour by platform or status, with a preview),
+  and with Clerk "Manage account" (email, password, two-step verification, delete account) and Log out.
+- General: rename the organisation (Owners and Admins, new `org.settings` permission); region shown read-only.
+- Members: "Invite new member" opens an invite window (several emails, a role picker that says what each role can do,
+  spaces chosen from a searchable list with Select all; links to copy or share on WhatsApp afterwards). Expired invites
+  show in red. A space's Members tab has the same button with that space filled in.
+- Tags (`org_tags`): add, rename and delete the organisation's tags; renaming or deleting changes every post that has
+  the tag. Tags already on posts are listed too, with how many posts use each, and the Table suggests the list.
+- Branding: a logo (resized to 256 px in the browser), primary and secondary colours, and "Brand client-facing pages",
+  which client review and strategy links follow (`src/components/BrandMark.tsx`).
+- Space settings (Space, Accounts, Autopost, Projects, Members, Statuses, Brand Brain) open in the same window.
+- Old addresses (`/notifications/settings`, `/ai/settings`) redirect to the new ones.
+- Not yet: integrations (Google Calendar, Drive, Canva; phase 6), workflow usage (no workflows yet), per-platform
+  autopost defaults such as a first comment (publishing doesn't support them yet).
 
 ### Search palette (top bar, Ctrl/⌘ K or Ctrl/⌘ /, PRD SR-01 to SR-03)
 

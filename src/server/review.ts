@@ -14,7 +14,7 @@ export async function resolveShareLink(token: string) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return { state: "missing" as const };
   const db = await getSystemDb();
   const [row] = await db
-    .select({ link: shareLinks, orgName: organizations.name, brandColor: organizations.brandColor, spaceName: spaces.name, timezone: spaces.timezone, archivedAt: spaces.archivedAt, deletedAt: spaces.deletedAt })
+    .select({ link: shareLinks, orgName: organizations.name, brandColor: organizations.brandColor, logoData: organizations.logoData, brandingEnabled: organizations.brandingEnabled, spaceName: spaces.name, timezone: spaces.timezone, archivedAt: spaces.archivedAt, deletedAt: spaces.deletedAt })
     .from(shareLinks)
     .innerJoin(organizations, eq(organizations.id, shareLinks.orgId))
     .innerJoin(spaces, eq(spaces.id, shareLinks.spaceId))

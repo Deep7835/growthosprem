@@ -6,6 +6,7 @@ export type Role = "owner" | "admin" | "manager" | "editor";
 export type Action =
   | "org.billing"
   | "org.delete"
+  | "org.settings"
   | "space.create"
   | "space.archive"
   | "ai.budget"
@@ -29,6 +30,7 @@ export interface SpaceScope {
 const ORG_ONLY: Partial<Record<Action, Role[]>> = {
   "org.billing": ["owner"],
   "org.delete": ["owner"],
+  "org.settings": ["owner", "admin"],
   "space.create": ["owner", "admin"],
   "space.archive": ["owner", "admin"],
   "ai.budget": ["owner", "admin"],

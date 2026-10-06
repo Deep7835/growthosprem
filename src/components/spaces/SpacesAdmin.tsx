@@ -24,9 +24,12 @@ export function SpacesAdmin(props: {
   const [typed, setTyped] = useState("");
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [pending, start] = useTransition();
-  const active = props.spaces.filter((s) => !s.archived && !s.deletedAt);
-  const archived = props.spaces.filter((s) => s.archived && !s.deletedAt);
-  const deleted = props.spaces.filter((s) => s.deletedAt);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const found = props.spaces.filter((s) => !q || s.name.toLowerCase().includes(q));
+  const active = found.filter((s) => !s.archived && !s.deletedAt);
+  const archived = found.filter((s) => s.archived && !s.deletedAt);
+  const deleted = found.filter((s) => s.deletedAt);
 
   const act = <T,>(fn: () => Promise<SpaceResult<T>>, done: (r: { ok: true } & T) => string) =>
     start(async () => {
@@ -60,13 +63,16 @@ export function SpacesAdmin(props: {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl font-bold">Spaces</h1>
+          <h1 className="text-xl font-semibold">Spaces</h1>
           <p className="text-sm text-muted">One space per client or brand, each with its own accounts, content, statuses and Brand Brain.</p>
         </div>
         <button type="button" onClick={() => setCreating(true)} className={buttonClass("primary", "sm")}>
           + New space
         </button>
       </div>
+      {props.spaces.length > 4 && (
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search spaces" aria-label="Search spaces" className="h-10 rounded-lg bg-line-soft px-3 text-[15px] outline-none focus:bg-surface focus:ring-1 focus:ring-line" />
+      )}
       <p aria-live="polite" className={`min-h-5 text-sm ${message?.error ? "text-danger" : "text-muted"}`}>
         {pending ? "Working…" : message?.text}
       </p>
@@ -80,6 +86,9 @@ export function SpacesAdmin(props: {
             row(
               s,
               <>
+                <Link href={`/o/${props.org}/s/${s.slug}/settings/members`} className={buttonClass("ghost", "sm")}>
+                  Members
+                </Link>
                 <Link href={`/o/${props.org}/s/${s.slug}/settings/space`} className={buttonClass("ghost", "sm")}>
                   Settings
                 </Link>

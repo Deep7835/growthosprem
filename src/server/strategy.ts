@@ -179,7 +179,7 @@ export async function loadSharedStrategy(token: string) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
   const db = await getSystemDb();
   const [row] = await db
-    .select({ strategy: strategies, space: spaces, orgName: organizations.name, brandColor: organizations.brandColor })
+    .select({ strategy: strategies, space: spaces, orgName: organizations.name, brandColor: organizations.brandColor, logoData: organizations.logoData, brandingEnabled: organizations.brandingEnabled })
     .from(strategies)
     .innerJoin(spaces, eq(spaces.id, strategies.spaceId))
     .innerJoin(organizations, eq(organizations.id, strategies.orgId))
@@ -190,7 +190,7 @@ export async function loadSharedStrategy(token: string) {
     .from(strategyVersions)
     .where(and(eq(strategyVersions.strategyId, row.strategy.id), eq(strategyVersions.version, row.strategy.currentVersion)));
   if (!version) return null;
-  return { doc: version.doc as StrategyDoc, version: version.version, updatedAt: version.createdAt, spaceName: row.space.name, orgName: row.orgName, brandColor: row.brandColor };
+  return { doc: version.doc as StrategyDoc, version: version.version, updatedAt: version.createdAt, spaceName: row.space.name, orgName: row.orgName, brandColor: row.brandColor, logoData: row.logoData, brandingEnabled: row.brandingEnabled };
 }
 
 /* ---------- 30-day planner (SG-03) ---------- */

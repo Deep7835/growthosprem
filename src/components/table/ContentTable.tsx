@@ -64,6 +64,8 @@ interface Props {
   edit: Edit;
   bulk: (ids: string[], action: Record<string, unknown>) => Promise<BulkResult>;
   saveView: (view: TableView) => Promise<void>;
+  /** The organisation's tag list (Settings › Tags), suggested alongside tags already in use. */
+  tagOptions?: string[];
 }
 
 export function ContentTable(props: Props) {
@@ -99,7 +101,7 @@ export function ContentTable(props: Props) {
   const statusById = new Map(data.statuses.map((s) => [s.id, s]));
   const projectById = new Map(data.projects.map((p) => [p.id, p]));
   const memberById = new Map(data.members.map((m) => [m.id, m]));
-  const allTags = [...new Set(rows.flatMap((r) => r.tags))].sort((a, b) => a.localeCompare(b));
+  const allTags = [...new Set([...rows.flatMap((r) => r.tags), ...(props.tagOptions ?? [])])].sort((a, b) => a.localeCompare(b));
   const pillars = [...new Set(rows.map((r) => r.pillar).filter((p): p is string => Boolean(p)))].sort();
   const activeFilters = Object.entries(filters).filter(([k, v]) => v && k !== "q").length;
   const show = (c: Column) => columns.includes(c);

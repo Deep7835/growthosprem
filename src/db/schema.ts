@@ -70,6 +70,11 @@ export const organizations = pgTable("organizations", {
   currency: text("currency").notNull().default("INR"),
   locale: text("locale").notNull().default("en-IN"),
   brandColor: text("brand_color"),
+  // Settings › Branding: a small logo (PNG data URL, resized in the browser), a second colour, and
+  // whether client-facing pages (review and strategy links) use them.
+  brandSecondary: text("brand_secondary"),
+  logoData: text("logo_data"),
+  brandingEnabled: boolean("branding_enabled").notNull().default(true),
   // Free trial (OB-10); billing replaces this with the subscription.
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
   // Monthly AI budget in credits, a hard cap (AI-13). 1 credit = US$0.01 of model usage.
@@ -871,6 +876,18 @@ export const spaceMoments = pgTable(
 // until Razorpay (India) and Stripe (elsewhere) are connected. Amounts are in paise or cents.
 export const billingProvider = pgEnum("billing_provider", ["sample", "razorpay", "stripe"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "past_due", "canceled"]);
+
+/** Settings › Tags: the organisation's tag list, offered when tagging posts. Posts keep tags as text. */
+export const orgTags = pgTable(
+  "org_tags",
+  {
+    id: id(),
+    orgId: orgId(),
+    name: text("name").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("org_tags_name").on(t.orgId, t.name)],
+);
 
 export const subscriptions = pgTable(
   "subscriptions",

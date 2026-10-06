@@ -95,7 +95,7 @@ export function NotificationCenter(props: {
           <h1 className="font-display text-3xl font-bold">Notifications</h1>
           <p className="text-sm text-muted">{counts.unread ? `${counts.unread} unread` : "Nothing unread"}</p>
         </div>
-        <Link href={`/o/${props.org}/notifications/settings`} className={buttonClass("secondary", "sm")}>
+        <Link href={`/o/${props.org}/settings/notifications`} className={buttonClass("secondary", "sm")}>
           Notification settings
         </Link>
       </header>

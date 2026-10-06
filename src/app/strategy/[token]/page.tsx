@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/BrandMark";
 import type { Metadata } from "next";
 import { StrategyView } from "@/components/strategy/StrategyView";
 import { loadSharedStrategy } from "@/server/strategy";
@@ -19,9 +20,7 @@ export default async function SharedStrategyPage({ params }: PageProps<"/strateg
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-5 p-4 md:p-8">
       <header className="flex flex-wrap items-center gap-3">
-        <span className="grid size-9 place-items-center rounded-lg font-bold text-white" style={{ background: shared.brandColor ?? "#17181C" }}>
-          {shared.orgName[0]}
-        </span>
+        <BrandMark name={shared.orgName} color={shared.brandColor} logo={shared.logoData} enabled={shared.brandingEnabled} size={36} />
         <div className="flex-1">
           <h1 className="font-display text-2xl font-bold">{shared.spaceName}: social media strategy</h1>
           <p className="text-sm text-muted">

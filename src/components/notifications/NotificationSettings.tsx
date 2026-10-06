@@ -37,7 +37,7 @@ export function NotificationSettings(props: {
   const [status, setStatus] = useState("");
   const [digestStatus, setDigestStatus] = useState("");
   const [pending, start] = useTransition();
-  const base = `/o/${props.org}/notifications/settings`;
+  const base = `/o/${props.org}/settings/notifications`;
   const spaceName = props.spaces.find((s) => s.id === props.scope)?.name;
 
   const run = (fn: () => Promise<void>, done: string, show = setStatus) =>
@@ -60,10 +60,7 @@ export function NotificationSettings(props: {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 pb-14">
       <div>
-        <Link href={`/o/${props.org}/notifications`} className="text-sm font-semibold text-muted hover:text-ink">
-          ← Notifications
-        </Link>
-        <h1 className="mt-1 font-display text-3xl font-bold">Notification settings</h1>
+        <h1 className="text-xl font-semibold">Notification settings</h1>
         <p className="text-sm text-muted">Choose what reaches you in Plotline and by email at {props.email}.</p>
       </div>
 

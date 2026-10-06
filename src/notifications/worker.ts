@@ -13,7 +13,7 @@ import { sendPendingPushes } from "./push";
 export const NOTIFY_JOB = { digest: "notify.digest" } as const;
 
 const footer = (orgSlug: string) => {
-  const link = `${publicBase()}/o/${orgSlug}/notifications/settings`;
+  const link = `${publicBase()}/o/${orgSlug}/settings/notifications`;
   return { text: `\n\nChoose what you get by email: ${link}\n`, html: `<p style="color:#6b7280;font-size:13px">Choose what you get by email in <a href="${link}">notification settings</a>.</p>` };
 };
 

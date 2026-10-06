@@ -80,5 +80,5 @@ export async function retagSpace(org: string, spaceId: string) {
       .set({ taggedAt: null, topic: null, hookType: null })
       .where(and(eq(posts.spaceId, id), or(isNull(posts.tagSource), eq(posts.tagSource, "ai")))),
   );
-  revalidatePath(`/o/${org}/ai/settings`);
+  revalidatePath(`/o/${org}/settings/ai`);
 }

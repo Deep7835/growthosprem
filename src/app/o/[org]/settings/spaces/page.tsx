@@ -1,3 +1,4 @@
+import { settingsPage } from "@/components/settings/SettingsWindow";
 import { notFound } from "next/navigation";
 import { SPACE_COLORS, TIMEZONES } from "@/app/onboarding/options";
 import { SpacesAdmin } from "@/components/spaces/SpacesAdmin";
@@ -23,7 +24,7 @@ export default async function SpacesPage({ params, searchParams }: PageProps<"/o
   const timezones = TIMEZONES.includes(ctx.org.timezone as (typeof TIMEZONES)[number]) ? TIMEZONES : [ctx.org.timezone, ...TIMEZONES];
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 pb-14">
+    <div className={settingsPage}>
       <SpacesAdmin
         org={org}
         isOwner={ctx.role === "owner"}

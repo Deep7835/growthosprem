@@ -2,7 +2,8 @@ import { and, desc, isNull } from "drizzle-orm";
 import { getSystemDb, withOrg } from "@/db";
 import { listMembers } from "@/db/members";
 import { invites } from "@/db/schema";
-import { InviteActions, InviteForm, MemberActions, ROLE_INFO } from "@/components/members/MembersClient";
+import { InviteActions, InviteButton, MemberActions, ROLE_INFO } from "@/components/members/MembersClient";
+import { SettingsHeading, settingsPage } from "@/components/settings/SettingsWindow";
 import { canManageMembers } from "@/lib/permissions";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
 import { inviteMembers, removeMemberAction, resendInvite, revokeInviteAction, updateAccess } from "./actions";
@@ -24,8 +25,9 @@ function shortDate(date: Date) {
   return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(date);
 }
 
-export default async function MembersPage({ params }: PageProps<"/o/[org]/settings/members">) {
+export default async function MembersPage({ params, searchParams }: PageProps<"/o/[org]/settings/members">) {
   const { org } = await params;
+  const query = await searchParams;
   const ctx = await getOrgContext(org);
   const db = await getSystemDb();
   const [members, visibleSpaces, pending] = await Promise.all([
@@ -48,21 +50,23 @@ export default async function MembersPage({ params }: PageProps<"/o/[org]/settin
     role === "owner" || role === "admin" ? "All spaces" : ids.map((id) => spaceName.get(id) ?? "Another space").join(", ") || "No spaces";
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 pb-14">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Members</h1>
-        <p className="mt-1 text-muted">
-          Everyone in {ctx.org.name}. Members only see the spaces they’ve been added to; Owners and Admins see all of them.
-        </p>
-      </div>
-
-      {canInviteAny && (
-        <InviteForm
-          action={inviteMembers.bind(null, org)}
-          spaces={spaceOptions}
-          roles={manage ? ["admin", "manager", "editor"] : ["manager", "editor"]}
-        />
-      )}
+    <div className={settingsPage}>
+      <SettingsHeading
+        title="Members"
+        body={`Everyone in ${ctx.org.name} · ${members.length} seat${members.length === 1 ? "" : "s"}. Members only see the spaces they’ve been added to; Owners and Admins see all of them.`}
+        action={
+          canInviteAny && (
+            <InviteButton
+              action={inviteMembers.bind(null, org)}
+              spaces={spaceOptions}
+              roles={manage ? ["admin", "manager", "editor"] : ["manager", "editor"]}
+              title={ctx.org.name}
+              startOpen={query.invite === "1"}
+              presetSpaceIds={typeof query.space === "string" && spaceOptions.some((s) => s.id === query.space) ? [query.space] : []}
+            />
+          )
+        }
+      />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">
@@ -142,7 +146,7 @@ export default async function MembersPage({ params }: PageProps<"/o/[org]/settin
                       <td className="px-4 py-3 text-ink-2">{spacesText(inv.role, inv.spaceIds)}</td>
                       <td className="px-4 py-3">
                         {expired ? (
-                          <span className="rounded-full bg-warn-bg px-2 py-0.5 text-xs font-semibold text-warn-ink">Expired {shortDate(inv.expiresAt)}</span>
+                          <span className="rounded-full bg-danger-bg px-2 py-0.5 text-xs font-semibold text-danger ring-1 ring-danger/25">Expired {shortDate(inv.expiresAt)}</span>
                         ) : (
                           <span className="text-ink-2">
                             Sent {inv.lastSentAt ? shortDate(inv.lastSentAt) : shortDate(inv.createdAt)} · expires {shortDate(inv.expiresAt)}

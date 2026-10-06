@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/BrandMark";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PreviewSwitcher } from "@/components/preview/PostPreview";
@@ -48,9 +49,7 @@ export default async function ReviewPage({ params, searchParams }: PageProps<"/r
       <header className="flex flex-col gap-3 border-b border-line bg-surface p-4">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-2 font-semibold">
-            <span className="grid size-[30px] place-items-center rounded-lg font-bold text-white" style={{ background: link.brandColor ?? "#17181C" }}>
-              {link.orgName[0]}
-            </span>
+            <BrandMark name={link.orgName} color={link.brandColor} logo={link.logoData} enabled={link.brandingEnabled} />
             {link.orgName}
           </span>
           {link.link.expiresAt && <span className="text-xs text-muted">Link expires {formatDateTime(link.link.expiresAt, link.timezone).split(",")[0]}</span>}
