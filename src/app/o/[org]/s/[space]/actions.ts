@@ -92,6 +92,7 @@ export async function createContentIn(org: string, space: string, projectId: str
         position: (top ?? 0) + 1,
         createdBy: ctx.user.id,
         autopost: ctx.space.autopostNewContent,
+        firstComment: ctx.space.postDefaults?.firstComment ?? "",
       })
       .returning();
     await logActivity(tx, {

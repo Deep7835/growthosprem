@@ -271,7 +271,7 @@ export async function addPlacement(ctx: SpaceContext, contentItemId: string, kin
       contentItemId: b.item.id,
       kind,
       socialAccountId: account?.id ?? null,
-      options: kind === "ig_reel" ? { shareToFeed: true } : {},
+      options: kind === "ig_reel" ? { shareToFeed: ctx.space.postDefaults?.shareReelsToFeed ?? true } : {},
       captionOverride: customised ? (sibling?.captionOverride ?? b.item.caption) : null,
     });
     await logActivity(tx, { orgId: ctx.org.id, spaceId: ctx.space.id, contentItemId: b.item.id, actor: actor(ctx), action: `added ${PLACEMENTS[kind].label}`, field: "placements" });

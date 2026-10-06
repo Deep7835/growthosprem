@@ -148,6 +148,8 @@ export const spaces = pgTable(
     // SP-03: a colour per platform for calendars, and platforms hidden from pickers.
     platformColors: jsonb("platform_colors").$type<Partial<Record<"instagram" | "facebook" | "linkedin", string>>>().notNull().default({}),
     hiddenPlatforms: text("hidden_platforms").array().notNull().default(sql`'{}'::text[]`),
+    // Settings › Autopost › Platform defaults, applied to new posts and placements (PB-05).
+    postDefaults: jsonb("post_defaults").$type<{ firstComment?: string; shareReelsToFeed?: boolean }>().notNull().default({}),
     // SP-05: archived spaces are read-only and hidden from the tree until restored.
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     // SP-06: deleted spaces are hidden at once and removed for good 30 days later.
@@ -884,6 +886,20 @@ export const spaceMoments = pgTable(
 export const billingProvider = pgEnum("billing_provider", ["sample", "razorpay", "stripe"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["active", "past_due", "canceled"]);
 
+/** Team comments on a note (never shown outside the team). */
+export const noteComments = pgTable(
+  "note_comments",
+  {
+    id: id(),
+    orgId: orgId(),
+    noteId: uuid("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("note_comments_note").on(t.noteId, t.createdAt)],
+);
+
 /** Support Center tickets: kept here and emailed to SUPPORT_EMAIL when that's set. */
 export const supportTickets = pgTable(
   "support_tickets",
@@ -897,6 +913,8 @@ export const supportTickets = pgTable(
     // Who to reply to, as it was when sent.
     email: text("email").notNull(),
     emailed: boolean("emailed").notNull().default(false),
+    // Screenshots and recordings, in storage under support/<org>/<ticket>/.
+    attachments: jsonb("attachments").$type<{ name: string; key: string; size: number; type: string }[]>().notNull().default([]),
     createdAt: createdAt(),
   },
   (t) => [index("support_tickets_org").on(t.orgId, t.createdAt)],

@@ -1,8 +1,9 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { withOrg } from "@/db";
-import { contentItems, notes, projects, users } from "@/db/schema";
+import { contentItems, noteComments, notes, projects, users } from "@/db/schema";
 import { deliver } from "@/notifications/deliver";
+import { mentionedIn } from "@/notifications/content";
 import { NOTE_TEMPLATES, type NoteTemplate } from "@/lib/note-templates";
 import { excerpt, sanitizeDoc, summarize } from "@/lib/notes";
 import { assignableMembers } from "./table";
@@ -119,4 +120,59 @@ export async function setPinned(ctx: SpaceContext, id: string, pinned: boolean) 
 
 export async function deleteNote(ctx: SpaceContext, id: string) {
   await withOrg(ctx.org.id, (tx) => tx.delete(notes).where(and(eq(notes.id, id), eq(notes.spaceId, ctx.space.id))));
+}
+
+/** A copy of the note: same text and project, "(copy)" on the title, not pinned. */
+export async function duplicateNote(ctx: SpaceContext, id: string) {
+  return withOrg(ctx.org.id, async (tx) => {
+    const [note] = await tx.select().from(notes).where(and(eq(notes.id, id), eq(notes.spaceId, ctx.space.id)));
+    if (!note) throw new Error("This note was deleted.");
+    const [copy] = await tx
+      .insert(notes)
+      .values({
+        orgId: ctx.org.id,
+        spaceId: ctx.space.id,
+        projectId: note.projectId,
+        title: `${note.title || "Untitled note"} (copy)`.slice(0, 200),
+        content: note.content,
+        text: note.text,
+        createdBy: ctx.user.id,
+        updatedBy: ctx.user.id,
+      })
+      .returning({ id: notes.id });
+    return copy.id;
+  });
+}
+
+export async function listNoteComments(ctx: SpaceContext, noteId: string) {
+  return withOrg(ctx.org.id, async (tx) => {
+    const rows = await tx
+      .select({ id: noteComments.id, body: noteComments.body, createdAt: noteComments.createdAt, authorId: noteComments.authorUserId, author: users.name })
+      .from(noteComments)
+      .innerJoin(notes, eq(notes.id, noteComments.noteId))
+      .leftJoin(users, eq(users.id, noteComments.authorUserId))
+      .where(and(eq(noteComments.noteId, noteId), eq(notes.spaceId, ctx.space.id)))
+      .orderBy(asc(noteComments.createdAt));
+    return rows.map((r) => ({ ...r, author: r.author ?? "Someone", createdAt: r.createdAt.toISOString() }));
+  });
+}
+
+/**
+ * A team comment on a note. People @mentioned get a mention; the note's author and others in
+ * the thread get a comment notification.
+ */
+export async function addNoteComment(ctx: SpaceContext, noteId: string, body: string, noteHref: string) {
+  return withOrg(ctx.org.id, async (tx) => {
+    const [note] = await tx.select().from(notes).where(and(eq(notes.id, noteId), eq(notes.spaceId, ctx.space.id)));
+    if (!note) throw new Error("This note was deleted.");
+    await tx.insert(noteComments).values({ orgId: ctx.org.id, noteId, authorUserId: ctx.user.id, body });
+    const members = await assignableMembers(tx, ctx);
+    const mentioned = mentionedIn(body, members).filter((u) => u !== ctx.user.id);
+    const title = note.title || "a note";
+    const event = { orgId: ctx.org.id, spaceId: ctx.space.id, body: body.slice(0, 280), href: noteHref };
+    await deliver(tx, mentioned, { ...event, kind: "mention", title: `${ctx.user.name} mentioned you on “${title}”` });
+    const thread = await tx.select({ id: noteComments.authorUserId }).from(noteComments).where(eq(noteComments.noteId, noteId));
+    const followers = [...new Set([note.createdBy, ...thread.map((t) => t.id)])].filter((u): u is string => Boolean(u) && u !== ctx.user.id && !mentioned.includes(u!));
+    await deliver(tx, followers, { ...event, kind: "comment", title: `${ctx.user.name} commented on “${title}”` });
+  });
 }

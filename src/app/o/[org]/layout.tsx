@@ -12,7 +12,6 @@ import { ShellProvider } from "@/components/shell/ShellState";
 import { SIDEBAR_COOKIE } from "@/lib/shell";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { markRead } from "./notifications/actions";
-import { submitTicket } from "./support-actions";
 import { TopBar } from "@/components/shell/TopBar";
 import { listDevUsers } from "@/server/session";
 import { getOrgContext, listArchivedSpaces, listVisibleSpaces } from "@/server/tenancy";
@@ -69,7 +68,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/o/[o
           unread={unread}
           canManageSpaces={ctx.role === "owner" || ctx.role === "admin"}
           archived={archivedSpaces.map((s) => ({ slug: s.slug, name: s.name, avatarColor: s.avatarColor }))}
-          support={{ user: { name: ctx.user.name, email: ctx.user.email }, spaces: spaces.map((s) => ({ slug: s.slug, name: s.name })), submit: submitTicket.bind(null, orgSlug) }}
+          support={{ user: { name: ctx.user.name, email: ctx.user.email }, spaces: spaces.map((s) => ({ slug: s.slug, name: s.name })) }}
         />
         <div className="flex min-w-0 flex-1 flex-col">
           {topBar}

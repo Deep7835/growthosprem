@@ -317,8 +317,9 @@ drizzle/                  SQL migrations
 - Short messages in the corner (`toast()` from `src/components/Toaster.tsx`), for example when a Board move fails.
 - Support Center (sidebar): a help window on the page with search over the help articles (`src/lib/help.ts`, also at
   `/o/[org]/help`), bookmarks (Product updates, all articles, keyboard shortcuts) and Submit a ticket by topic. Tickets
-  are saved in `support_tickets` and emailed to `SUPPORT_EMAIL` with the person as reply-to when that and Resend are
-  set up; the window says plainly when email isn't set up.
+  are sent to `/api/o/[org]/support` with up to three images, videos or PDFs (10 MB each, kept in storage under
+  `support/`), saved in `support_tickets` and emailed to `SUPPORT_EMAIL` with the files attached and the person as
+  reply-to when that and Resend are set up; the window says plainly when email isn't set up.
 
 ### Settings window
 
@@ -338,8 +339,10 @@ drizzle/                  SQL migrations
   which client review and strategy links follow (`src/components/BrandMark.tsx`).
 - Space settings (Space, Accounts, Autopost, Projects, Members, Statuses, Brand Brain) open in the same window.
 - Old addresses (`/notifications/settings`, `/ai/settings`) redirect to the new ones.
-- Not yet: integrations (Google Calendar, Drive, Canva; phase 6), workflow usage (no workflows yet), per-platform
-  autopost defaults such as a first comment (publishing doesn't support them yet).
+- Autopost › Platform defaults (`spaces.post_defaults`): an Instagram first comment for new posts (Plotline posts it
+  after publishing, not on Stories) and whether new Reels are shared to the main feed. Facebook and LinkedIn have none,
+  since Plotline doesn't send titles or visibility to them.
+- Not yet: integrations (Google Calendar, Drive, Canva; phase 6), workflow usage (no workflows yet).
 
 ### Search palette (top bar, Ctrl/⌘ K or Ctrl/⌘ /, PRD SR-01 to SR-03)
 
@@ -419,6 +422,10 @@ drizzle/                  SQL migrations
 - Documents are sanitised on the server: only known blocks and marks, safe link targets (no `javascript:`), a size limit,
   and mentions only of people in the space.
 - Not yet: real-time co-editing (CT-15, V2), notes in the search palette (SR-02), attaching files, comments on notes.
+- Each note has a "···" menu: Duplicate, Copy link, Print or save as PDF (a page on its own at
+  `/print/[org]/[space]/note/[id]` that opens the print dialog) and Delete. Team comments sit under the note (never
+  shown to clients); @name notifies that person, and the note's author and others in the thread get a comment
+  notification (`note_comments`).
 
 ### Table (`/o/[org]/s/[space]/table`, PRD VW-02, VW-03)
 

@@ -253,6 +253,20 @@
       "when": 1791303626294,
       "tag": "0035_rls_support_tickets",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791304501011,
+      "tag": "0036_notes_comments_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791304504285,
+      "tag": "0037_rls_note_comments",
+      "breakpoints": true
     }
   ]
 }

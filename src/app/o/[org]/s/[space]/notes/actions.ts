@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { NOTE_TEMPLATES, type NoteTemplate } from "@/lib/note-templates";
-import { createNote, deleteNote, saveNote, setPinned } from "@/server/notes";
+import { addNoteComment, createNote, deleteNote, duplicateNote, saveNote, setPinned } from "@/server/notes";
 import { requireSpaceAction } from "@/server/tenancy";
 
 const id = z.uuid();
@@ -49,4 +49,23 @@ export async function remove(org: string, space: string, noteId: string) {
   await deleteNote(ctx, id.parse(noteId));
   revalidatePath(`/o/${org}/s/${space}`, "layout");
   redirect(page(org, space));
+}
+
+export async function duplicate(org: string, space: string, noteId: string) {
+  const ctx = await requireSpaceAction(org, space, "content.edit");
+  const copy = await duplicateNote(ctx, id.parse(noteId));
+  revalidatePath(`/o/${org}/s/${space}`, "layout");
+  redirect(`${page(org, space)}?note=${copy}`);
+}
+
+export async function comment(org: string, space: string, noteId: string, body: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const ctx = await requireSpaceAction(org, space, "content.edit");
+    const text = z.string().trim().min(1, "Write something first.").max(5000).parse(body);
+    await addNoteComment(ctx, id.parse(noteId), text, `${page(org, space)}?note=${noteId}`);
+    revalidatePath(`/o/${org}/s/${space}`, "layout");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof z.ZodError ? (e.issues[0]?.message ?? "That comment isn’t valid.") : e instanceof Error ? e.message : "Couldn’t post it." };
+  }
 }

@@ -120,7 +120,7 @@ export async function createOnCalendar(org: string, space: string, kind: "conten
       const [{ top }] = await tx.select({ top: max(contentItems.position) }).from(contentItems).where(eq(contentItems.spaceId, ctx.space.id));
       const [item] = await tx
         .insert(contentItems)
-        .values({ orgId: ctx.org.id, spaceId: ctx.space.id, title: "Untitled post", statusId: first.id, scheduledAt: at, position: (top ?? 0) + 1, createdBy: ctx.user.id, autopost: ctx.space.autopostNewContent })
+        .values({ orgId: ctx.org.id, spaceId: ctx.space.id, title: "Untitled post", statusId: first.id, scheduledAt: at, position: (top ?? 0) + 1, createdBy: ctx.user.id, autopost: ctx.space.autopostNewContent, firstComment: ctx.space.postDefaults?.firstComment ?? "" })
         .returning();
       await logActivity(tx, { orgId: ctx.org.id, spaceId: ctx.space.id, contentItemId: item.id, actor: { kind: "user", userId: ctx.user.id, name: ctx.user.name }, action: "created on the calendar" });
       return item.id;

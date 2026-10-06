@@ -10,6 +10,8 @@ import { requireSpaceAction } from "@/server/tenancy";
 export async function saveAutopost(org: string, space: string, _state: { saved?: boolean; error?: string }, form: FormData) {
   const ctx = await requireSpaceAction(org, space, "space.settings");
   const eligible = z.array(z.uuid()).parse(form.getAll("eligible"));
+  const firstComment = z.string().max(2200, "Keep the first comment under 2,200 characters.").safeParse(String(form.get("firstComment") ?? "").trim());
+  if (!firstComment.success) return { error: firstComment.error.issues[0].message };
   await withOrg(ctx.org.id, async (tx) => {
     await tx
       .update(spaces)
@@ -17,6 +19,7 @@ export async function saveAutopost(org: string, space: string, _state: { saved?:
         autopostNewContent: form.get("autopostNewContent") === "on",
         requireClientApproval: form.get("requireClientApproval") === "on",
         editorsCanSchedule: form.get("editorsCanSchedule") === "on",
+        postDefaults: { firstComment: firstComment.data || undefined, shareReelsToFeed: form.get("shareReelsToFeed") === "on" },
       })
       .where(eq(spaces.id, ctx.space.id));
     if (eligible.length) {

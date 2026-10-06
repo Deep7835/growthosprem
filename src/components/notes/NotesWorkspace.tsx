@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { buttonClass } from "@/components/ui";
 import { NoteEditor } from "./NoteEditor";
+import { NoteComments, NoteMenu, type NoteComment } from "./NoteExtras";
 
 interface NoteListItem {
   id: string;
@@ -34,7 +35,16 @@ export function NotesWorkspace({
   save,
   pin,
   remove,
+  comments = [],
+  comment,
+  duplicate,
+  printBase,
 }: {
+  comments?: NoteComment[];
+  comment: (noteId: string, body: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  duplicate: (noteId: string) => Promise<void>;
+  /** The printable page for a note, as `${printBase}/${id}`. */
+  printBase: string;
   base: string;
   notes: NoteListItem[];
   current: { id: string; title: string; content: unknown; projectId: string | null; pinned: boolean } | null;
@@ -141,15 +151,11 @@ export function NotesWorkspace({
               </select>
               <span className="flex-1" />
               {canEdit && (
-                <>
-                  <button type="button" onClick={() => start(() => pin(current.id, !current.pinned))} className={buttonClass("ghost", "sm")}>
-                    {current.pinned ? "Unpin" : "Pin to top"}
-                  </button>
-                  <button type="button" onClick={() => confirm.current?.showModal()} className={buttonClass("ghost", "sm")}>
-                    Delete
-                  </button>
-                </>
+                <button type="button" onClick={() => start(() => pin(current.id, !current.pinned))} className={buttonClass("ghost", "sm")}>
+                  {current.pinned ? "Unpin" : "Pin to top"}
+                </button>
               )}
+              <NoteMenu printHref={`${printBase}/${current.id}`} canEdit={canEdit} duplicate={() => duplicate(current.id)} onDelete={() => confirm.current?.showModal()} />
             </div>
             <NoteEditor
               key={current.id}
@@ -162,6 +168,7 @@ export function NotesWorkspace({
               postBase={postBase}
               save={(input) => save(current.id, input)}
             />
+            <NoteComments key={`c-${current.id}`} comments={comments} canEdit={canEdit} now={requestTime} post={(body) => comment(current.id, body)} />
             <dialog ref={confirm} aria-labelledby="delete-note" className="m-auto w-[min(420px,92vw)] rounded-2xl bg-surface p-5 text-ink shadow-2xl backdrop:bg-ink/40">
               <h2 id="delete-note" className="font-display text-lg font-bold">
                 Delete “{current.title || "Untitled note"}”?

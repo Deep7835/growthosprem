@@ -1,8 +1,8 @@
 import { NotesWorkspace } from "@/components/notes/NotesWorkspace";
 import { NOTE_TEMPLATES } from "@/lib/note-templates";
-import { getNote, listNotes, noteSuggestions } from "@/server/notes";
+import { getNote, listNoteComments, listNotes, noteSuggestions } from "@/server/notes";
 import type { SpaceContext } from "@/server/tenancy";
-import { newNote, newProjectNote, pin, remove, save } from "../notes/actions";
+import { comment, duplicate, newNote, newProjectNote, pin, remove, save } from "../notes/actions";
 import { viewRoot, type Query } from "./root";
 
 /** VW-06: briefs and meeting notes for the space, or one project's. */
@@ -12,6 +12,7 @@ export async function NotesView({ ctx, query }: { ctx: SpaceContext; query: Quer
   const [list, suggestions] = await Promise.all([listNotes(ctx), noteSuggestions(ctx)]);
   const wanted = typeof query.note === "string" ? query.note : list[0]?.id;
   const note = wanted ? await getNote(ctx, wanted) : null;
+  const comments = note ? await listNoteComments(ctx, note.id) : [];
 
   return (
     <NotesWorkspace
@@ -29,6 +30,10 @@ export async function NotesView({ ctx, query }: { ctx: SpaceContext; query: Quer
       save={save.bind(null, org, space)}
       pin={pin.bind(null, org, space)}
       remove={remove.bind(null, org, space)}
+      comments={comments}
+      comment={comment.bind(null, org, space)}
+      duplicate={duplicate.bind(null, org, space)}
+      printBase={`/print/${org}/${space}/note`}
     />
   );
 }

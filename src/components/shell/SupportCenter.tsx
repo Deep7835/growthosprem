@@ -13,19 +13,19 @@ export interface SupportProps {
   orgSlug: string;
   user: { name: string; email: string };
   spaces: { slug: string; name: string }[];
-  submit: (input: { category: string; message: string; space: string | null }) => Promise<{ ok: true; emailed: boolean } | { ok: false; error: string }>;
 }
 
 const row = "flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-left text-[13.5px] text-ink-2 hover:bg-line-soft hover:text-ink";
 
 /** Support Center: search the help articles, open bookmarks, or send a ticket. Opens from the sidebar. */
-export function SupportCenter({ orgSlug, user, spaces, submit }: SupportProps) {
+export function SupportCenter({ orgSlug, user, spaces }: SupportProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>({ name: "home" });
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
   const [space, setSpace] = useState("");
   const [error, setError] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [pending, start] = useTransition();
   const base = `/o/${orgSlug}`;
   const results = query.trim() ? searchHelp(query) : HELP_ARTICLES.slice(0, 4);
@@ -160,14 +160,19 @@ export function SupportCenter({ orgSlug, user, spaces, submit }: SupportProps) {
                     e.preventDefault();
                     setError("");
                     start(async () => {
-                      const r = await submit({
-                        category: category.id,
-                        message,
-                        space: space || null,
-                      });
-                      if (!r.ok) return setError(r.error);
+                      const form = new FormData();
+                      form.set("category", category.id);
+                      form.set("message", message);
+                      if (space) form.set("space", space);
+                      for (const f of files) form.append("files", f);
+                      const res = await fetch(`/api/o/${orgSlug}/support`, { method: "POST", body: form }).catch(() => null);
+                      const r = res
+                        ? ((await res.json().catch(() => ({}))) as { ok?: boolean; emailed?: boolean; error?: string })
+                        : { error: "Couldn’t reach Plotline. Check your connection." };
+                      if (!r.ok) return setError(r.error ?? "Couldn’t send it.");
                       setMessage("");
-                      setView({ name: "sent", emailed: r.emailed });
+                      setFiles([]);
+                      setView({ name: "sent", emailed: Boolean(r.emailed) });
                     });
                   }}
                   className="flex flex-col gap-3"
@@ -215,7 +220,37 @@ export function SupportCenter({ orgSlug, user, spaces, submit }: SupportProps) {
                       </select>
                     </label>
                   )}
-                  <p className="text-xs text-muted">Screenshots help: reply to our email with them attached.</p>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-sm font-medium">
+                      Screenshots or recordings <span className="text-xs font-normal text-muted">(up to 3, 10 MB each)</span>
+                    </span>
+                    {files.length < 3 && (
+                      <label className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-dashed border-line px-3 py-3 text-center text-xs text-muted hover:border-ink-2">
+                        <Icon name="download" className="rotate-180" />
+                        Click to add images, videos or PDFs
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*,video/mp4,video/quicktime,video/webm,application/pdf"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const picked = [...(e.target.files ?? [])];
+                            e.target.value = "";
+                            setFiles((f) => [...f, ...picked].slice(0, 3));
+                          }}
+                        />
+                      </label>
+                    )}
+                    {files.map((f, i) => (
+                      <span key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-md bg-subtle px-2 py-1 text-xs">
+                        <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                        <span className="text-muted">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                        <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles((list) => list.filter((_, j) => j !== i))} className="text-muted hover:text-ink">
+                          <Icon name="x" size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                   {error && (
                     <p role="alert" className="rounded-lg bg-danger-bg px-2.5 py-2 text-sm text-danger">
                       {error}
