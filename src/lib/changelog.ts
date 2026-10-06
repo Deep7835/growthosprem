@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGELOG: Change[] = [
   {
+    id: "2026-10-06-post-window",
+    date: "2026-10-06",
+    tags: ["new", "improved"],
+    title: "Repurpose, share a post, and add from the calendar",
+    body: "Turn a post for several platforms into one post per platform, linked as a group. Share any post with a link that can view, comment or approve and expires when you choose. Change status, assignees, project and tags right in the post window, duplicate, archive or delete from its menu, and add a post or task straight from a day or an empty time on the calendar. Board columns now take their status colour.",
+  },
+  {
+    id: "2026-10-06-settings",
+    date: "2026-10-06",
+    tags: ["new"],
+    title: "All your settings in one window",
+    body: "The gear opens Profile, Organisation and every space's settings in one place. Rename your organisation, manage its tags, add your logo and colours to client links, and invite people with a clearer invite window.",
+  },
+  {
     id: "2026-10-06-shell",
     date: "2026-10-06",
     tags: ["new", "improved", "fixed"],

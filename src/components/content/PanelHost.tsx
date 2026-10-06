@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getContentDetail } from "@/server/content";
+import { panelExtras } from "@/server/content-ops";
 import { getPublishView } from "@/server/publishing";
 import { tasksForPost } from "@/server/tasks";
 import type { SpaceContext } from "@/server/tenancy";
@@ -11,10 +12,13 @@ export async function PanelHost({ ctx, org, space, contentId, closeHref }: { ctx
   if (!/^[0-9a-f-]{36}$/.test(contentId)) notFound();
   const [detail, publishing, postTasks] = await Promise.all([getContentDetail(ctx, contentId), getPublishView(ctx, contentId), tasksForPost(ctx, contentId)]);
   if (!detail || !publishing) notFound();
+  const extras = await panelExtras(ctx, detail.item);
   return (
     <ContentPanel
       key={detail.item.id}
       detail={detail}
+      extras={extras}
+      canShare={ctx.can("share.create")}
       org={org}
       space={space}
       spaceName={ctx.space.name}

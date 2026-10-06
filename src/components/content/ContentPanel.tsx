@@ -11,11 +11,16 @@ import { addTemplateTasks, editTask, newTask } from "@/app/o/[org]/s/[space]/tas
 import type { PostTasks as PostTasksData } from "@/server/tasks";
 import { attachToContent, detachFromContent, moveContentMedia } from "@/app/o/[org]/s/[space]/media/actions";
 import { ContentMedia } from "@/components/media/ContentMedia";
-import { AvatarStack, PublishState, buttonClass } from "@/components/ui";
+import { PublishState, buttonClass } from "@/components/ui";
 import { formatDateTime, formatSchedule } from "@/lib/format";
 import { CAPTION_LIMITS, PLACEMENTS, PLATFORM_NAMES, type PlacementKind, type Platform } from "@/lib/placements";
 import type { ContentDetail } from "@/server/content";
-import { ActivityTabs, InlineField, PanelFrame, StatusSelect } from "./PanelClient";
+import { ActivityTabs, InlineField, PanelFrame } from "./PanelClient";
+import { AssigneePicker, GroupRail, PostMenu, ProjectPicker, StatusPicker, TagsPicker } from "./PostControls";
+import { duplicatePost, repurposePost, revokeShareLink, sharePosts } from "@/app/o/[org]/s/[space]/content-actions";
+import { bulkAction, editCell } from "@/app/o/[org]/s/[space]/table/actions";
+import { Icon, type IconName } from "@/components/icons";
+import type { PanelExtras } from "@/server/content-ops";
 
 const FIELD_LABEL: Record<string, string> = {
   status: "Status",
@@ -34,8 +39,23 @@ function describe(a: ContentDetail["activity"][number]): string {
   return `${a.action[0].toUpperCase()}${a.action.slice(1)} by ${a.actorLabel}`;
 }
 
+function Prop({ icon, label, children, id }: { icon: IconName; label: string; children: React.ReactNode; id?: string }) {
+  return (
+    <>
+      <dt className="flex h-8 items-center gap-2 text-muted">
+        <Icon name={icon} size={15} /> {label}
+      </dt>
+      <dd id={id} className="flex min-w-0 flex-wrap items-center gap-2">
+        {children}
+      </dd>
+    </>
+  );
+}
+
 export function ContentPanel({
   detail,
+  extras,
+  canShare,
   org,
   space,
   spaceName,
@@ -49,6 +69,9 @@ export function ContentPanel({
   statusesHref = null,
 }: {
   detail: ContentDetail;
+  extras: PanelExtras;
+  /** SH-02: Managers and Editors can share links. */
+  canShare: boolean;
   /** ST-06: shortcut to status management, for people who can change it. */
   statusesHref?: string | null;
   postTasks: PostTasksData | null;
@@ -70,12 +93,29 @@ export function ContentPanel({
 
   return (
     <PanelFrame closeHref={closeHref} title={item.title}>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
-        <p className="text-sm text-muted">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-t-2xl border-b border-line bg-gradient-to-r from-[#fde7c4] via-[#fff4e4] to-surface px-5 py-3">
+        <p className="text-sm text-ink-2">
           {spaceName}
           {detail.projectName ? ` › ${detail.projectName}` : ""}
+          {extras.siblings.length > 1 && <span className="ml-2 rounded-md bg-surface/70 px-1.5 py-0.5 text-xs font-semibold">Repurposed group</span>}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <PostMenu
+            title={item.title}
+            contentId={item.id}
+            kinds={detail.placements.map((p) => p.kind as PlacementKind)}
+            grouped={extras.siblings.length > 1}
+            canEdit={canEdit}
+            canShare={canShare}
+            siblings={extras.siblings}
+            links={extras.links}
+            closeHref={closeHref}
+            share={sharePosts.bind(null, org, space)}
+            revoke={revokeShareLink.bind(null, org, space)}
+            repurpose={repurposePost.bind(null, org, space, item.id)}
+            duplicate={duplicatePost.bind(null, org, space, item.id)}
+            bulk={bulkAction.bind(null, org, space)}
+          />
           <ScheduleControls
             org={org}
             space={space}
@@ -124,37 +164,42 @@ export function ContentPanel({
             readOnly={!canEdit}
             className="font-display text-2xl font-bold"
           />
-          <dl className="grid grid-cols-[120px_1fr] items-center gap-x-3 gap-y-3 px-2 text-sm">
-            <dt className="text-muted">Status</dt>
-            <dd id="panel-status" className="flex flex-wrap items-center gap-2">
-              <StatusSelect
+          <GroupRail siblings={extras.siblings} closeHref={closeHref} />
+          <dl className="grid grid-cols-[120px_1fr] items-start gap-x-3 gap-y-1.5 px-2 text-sm">
+            <Prop icon="check" label="Status" id="panel-status">
+              <StatusPicker
                 key={item.statusId}
                 statuses={detail.statuses}
                 current={item.statusId}
                 disabled={!canEdit}
                 move={moveContent.bind(null, org, space, item.id)}
+                manageHref={statusesHref}
               />
               <PublishState state={item.publishState} />
-              {statusesHref && (
-                <Link href={statusesHref} className="text-xs font-semibold text-muted hover:text-ink">
-                  Manage statuses
-                </Link>
-              )}
-            </dd>
-            <dt className="text-muted">Assignees</dt>
-            <dd>{detail.assignees.length ? <AvatarStack people={detail.assignees} /> : <span className="text-muted">Unassigned</span>}</dd>
-            <dt className="text-muted">Schedule</dt>
-            <dd>
-              {formatSchedule(item.scheduledAt, timezone) ?? <span className="text-muted">Unscheduled</span>}
-              {item.scheduledAt && (
-                <span className="text-muted">
-                  {" "}
-                  {timezone === "Asia/Kolkata" ? "IST" : timezone} · Autopost {item.autopost ? "on" : "off"}
-                </span>
-              )}
-            </dd>
-            <dt className="text-muted">Pillar</dt>
-            <dd>{item.pillar ?? <span className="text-muted">None</span>}</dd>
+            </Prop>
+            <Prop icon="users" label="Assignees">
+              <AssigneePicker people={extras.members} initial={detail.assignees} disabled={!canEdit} edit={editCell.bind(null, org, space, item.id)} />
+            </Prop>
+            <Prop icon="folder" label="Project">
+              <ProjectPicker projects={extras.projects} initial={item.projectId} disabled={!canEdit} edit={editCell.bind(null, org, space, item.id)} />
+            </Prop>
+            <Prop icon="tag" label="Tags">
+              <TagsPicker initial={item.tags} options={extras.tagOptions} disabled={!canEdit} edit={editCell.bind(null, org, space, item.id)} />
+            </Prop>
+            <Prop icon="calendar" label="Schedule">
+              <span className="px-2 py-1">
+                {formatSchedule(item.scheduledAt, timezone) ?? <span className="text-muted">Unscheduled</span>}
+                {item.scheduledAt && (
+                  <span className="text-muted">
+                    {" "}
+                    {timezone === "Asia/Kolkata" ? "IST" : timezone} · Autopost {item.autopost ? "on" : "off"}
+                  </span>
+                )}
+              </span>
+            </Prop>
+            <Prop icon="sparkles" label="Pillar">
+              <span className="px-2 py-1">{item.pillar ?? <span className="text-muted">None</span>}</span>
+            </Prop>
           </dl>
 
           <PublishingSection

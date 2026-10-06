@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { IssueList } from "@/components/content/Publishing";
+import { Icon } from "@/components/icons";
+import { menuItem, Popover as MenuPopover } from "@/components/Popover";
+import { toast } from "@/components/Toaster";
 import { Avatar, PlacementChip, PublishState, StatusDot, buttonClass } from "@/components/ui";
 import { PLATFORM_NAMES, type Platform } from "@/lib/placements";
 import type { Issue } from "@/lib/publishing/rules";
@@ -66,6 +69,88 @@ interface Props {
   saveView: (view: TableView) => Promise<void>;
   /** The organisation's tag list (Settings › Tags), suggested alongside tags already in use. */
   tagOptions?: string[];
+  /** The row menu's Duplicate. */
+  duplicate?: (id: string) => Promise<{ ok: true; id: string } | { ok: false; error: string }>;
+}
+
+/** Open, Duplicate, Copy link, Archive or Restore, and Delete for one row. */
+function RowMenu({ row, href, canEdit, duplicate, bulk }: { row: TableRow; href: string; canEdit: boolean; duplicate?: Props["duplicate"]; bulk: Props["bulk"] }) {
+  const [confirming, setConfirming] = useState(false);
+  const [, start] = useTransition();
+  const run = (action: "archive" | "restore" | "delete", done: string) =>
+    start(async () => {
+      const r = await bulk([row.id], { action });
+      if (r.done) toast("success", done);
+      else toast("error", "That didn’t work", r.failed[0]?.reason);
+    });
+  return (
+    <MenuPopover label={`Actions for ${row.title}`} buttonClassName="grid size-7 place-items-center rounded-md text-muted hover:bg-line-soft hover:text-ink aria-expanded:bg-line-soft" panelClassName="right-0 top-full mt-1 w-48" button={<Icon name="more" size={18} />}>
+      {(close) => (
+        <div className="flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <Link href={href} scroll={false} onClick={close} className={menuItem}>
+            <Icon name="board" /> Open
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              close();
+              await navigator.clipboard.writeText(new URL(href, window.location.href).toString());
+              toast("success", "Link copied", "Teammates with access can open it.");
+            }}
+            className={menuItem}
+          >
+            <Icon name="link" /> Copy link
+          </button>
+          {canEdit && duplicate && (
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                start(async () => {
+                  const r = await duplicate(row.id);
+                  if (r.ok) toast("success", "Post duplicated");
+                  else toast("error", "Couldn’t duplicate it", r.error);
+                });
+              }}
+              className={menuItem}
+            >
+              <Icon name="plus" /> Duplicate
+            </button>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                run(row.archived ? "restore" : "archive", row.archived ? "Post restored" : "Post archived");
+              }}
+              className={menuItem}
+            >
+              <Icon name="folder" /> {row.archived ? "Restore" : "Archive"}
+            </button>
+          )}
+          {canEdit &&
+            (confirming ? (
+              <button
+                type="button"
+                onClick={() => {
+                  close();
+                  setConfirming(false);
+                  run("delete", "Post deleted");
+                }}
+                className={`${menuItem} bg-danger-bg font-semibold text-danger hover:text-danger`}
+              >
+                <Icon name="trash" /> Delete for good?
+              </button>
+            ) : (
+              <button type="button" onClick={() => setConfirming(true)} className={`${menuItem} text-danger hover:text-danger`}>
+                <Icon name="trash" /> Delete
+              </button>
+            ))}
+        </div>
+      )}
+    </MenuPopover>
+  );
 }
 
 export function ContentTable(props: Props) {
@@ -230,6 +315,9 @@ export function ContentTable(props: Props) {
                   {k === "schedule" ? `${l} · ${props.timeZoneLabel}` : l}
                 </th>
               ))}
+              <th className="w-10 px-2 py-3">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -379,6 +467,9 @@ export function ContentTable(props: Props) {
                       <PublishState state={r.publishState} />
                     </td>
                   )}
+                  <td className="px-2 py-2">
+                    <RowMenu row={r} href={openHref(r.id)} canEdit={canEdit} duplicate={props.duplicate} bulk={props.bulk} />
+                  </td>
                 </tr>
               );
             })}

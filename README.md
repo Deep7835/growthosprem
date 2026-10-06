@@ -324,6 +324,23 @@ drizzle/                  SQL migrations
   open on their own), Esc closes. Results come back in about 30–60 ms on the sample data.
 - Not yet: search inside media by AI description (SR-04, V2); a trigram index for large workspaces.
 
+### Post window (content panel, PRD CT-12, SH-02, ST-01)
+
+- Header in a warm tint with the space and project, "Repurposed group" when it has one, and Share, Repurpose, the
+  "···" menu (Duplicate, Archive, Delete with a confirmation) and Schedule or post.
+- Fields with icons: Status (a searchable picker grouped by category, with Manage statuses), Assignees (search and
+  tick people in the space), Project, Tags (type and press Enter; the organisation's tags and tags in use are
+  suggested), Schedule and Pillar. Changes save straight away; a failed save puts the old value back and says why.
+- Repurpose (`src/server/content-ops.ts`): a post with several platforms becomes one post per platform, linked as a
+  group (`content_items.group_id`) that the window lists at the top, so each can have its own caption, media and date.
+  Each keeps the status, assignees, tags, media and date; a platform's own caption becomes that post's caption.
+  Scheduled or published posts can't be split.
+- Share: a link for this post, or any posts in its group, that anyone can open without an account: Can view, Can
+  comment or Can approve, expiring in 1, 7, 14 or 30 days or never. Copy it, email it or send it on WhatsApp; links
+  already shared are listed with Copy and Turn off.
+- Duplicate makes a draft copy (text, tags, project, assignees, media and platforms, without dates or results) and
+  opens it.
+
 ### Per-platform captions (content panel, PRD CT-06)
 
 - One shared caption by default, with a counter per chosen platform. "Customise per platform" splits it into a tab per
@@ -393,6 +410,7 @@ drizzle/                  SQL migrations
 - Archived posts leave the Board, Calendar, Previews, Overview and the Copilot's view, and can be restored from the
   Table. Posts scheduled to publish must be unscheduled before archiving or deleting.
 - Not yet: column reordering and resizing, an organisation-wide table, CSV export.
+- Each row has a "···" menu: Open, Copy link, Duplicate, Archive or Restore, and Delete (asks again).
 
 ### Previews (`/o/[org]/s/[space]/previews`, content panel, review page, PRD VW-05, CT-03, SH-03)
 
@@ -428,6 +446,9 @@ drizzle/                  SQL migrations
 - Load errors say what failed and offer Retry (OV-08).
 - Not yet: Google Calendar sync, a keyboard alternative to dragging (use the post's Schedule dialog), tasks without a post
   opening their own panel.
+- Add from the calendar: "+" on a day (10 AM) or a click on an empty time in Week and Day opens a small menu for a
+  post planned then or a task due then; on the organisation calendar it also asks which space. The new item opens
+  straight away.
 
 ### Publishing (content panel, `settings/autopost`, PRD 6.10, PB-03 to PB-12)
 

@@ -1,5 +1,6 @@
 import { PanelHost } from "@/components/content/PanelHost";
 import { tagSuggestions } from "@/server/org-settings";
+import { duplicatePost } from "../content-actions";
 import { ContentTable } from "@/components/table/ContentTable";
 import { ViewToggle } from "@/components/tasks/bits";
 import { TaskPanelHost, withoutTask } from "@/components/tasks/TaskPanelHost";
@@ -66,6 +67,7 @@ export async function TableView({ ctx, query }: { ctx: SpaceContext; query: Quer
         bulk={bulkAction.bind(null, org, space)}
         saveView={saveTableView.bind(null, org, space)}
         tagOptions={tagOptions}
+        duplicate={duplicatePost.bind(null, org, space)}
       />
       <PanelHost ctx={ctx} org={org} space={space} contentId={typeof query.content === "string" ? query.content : null} closeHref={base} />
       {taskPanel}

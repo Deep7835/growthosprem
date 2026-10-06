@@ -4,7 +4,7 @@ import { calendarZone, loadCalendar, readFilters } from "@/server/calendar";
 import { calendarSettings } from "@/server/calendar-page";
 import { upcomingMoments } from "@/lib/festivals";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
-import { moveContent, moveTask, setCalendarPrefs } from "../../calendar-actions";
+import { createOnCalendar, moveContent, moveTask, setCalendarPrefs } from "../../calendar-actions";
 
 export const metadata = { title: "Calendar" };
 
@@ -60,6 +60,7 @@ export default async function OrgCalendarPage({ params, searchParams }: PageProp
       platformColors={Object.fromEntries(visible.map((v) => [v.slug, v.platformColors]))}
       moveContent={moveContent.bind(null, org)}
       moveTask={moveTask.bind(null, org)}
+      createItem={createOnCalendar.bind(null, org)}
       setPrefs={setCalendarPrefs.bind(null, org)}
     />
   );

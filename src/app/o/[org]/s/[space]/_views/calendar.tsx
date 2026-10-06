@@ -5,7 +5,7 @@ import { loadCalendar, readFilters } from "@/server/calendar";
 import { calendarSettings } from "@/server/calendar-page";
 import { momentsForRange } from "@/server/strategy";
 import type { SpaceContext } from "@/server/tenancy";
-import { moveContent, moveTask, setCalendarPrefs } from "../../../calendar-actions";
+import { createOnCalendar, moveContent, moveTask, setCalendarPrefs } from "../../../calendar-actions";
 import { viewRoot, type Query } from "./root";
 
 /** VW-04: the organisation calendar's behaviour, limited to one space or one project. */
@@ -50,6 +50,8 @@ export async function CalendarView({ ctx, query }: { ctx: SpaceContext; query: Q
         platformColors={{ [ctx.space.slug]: ctx.space.platformColors }}
         moveContent={moveContent.bind(null, org)}
         moveTask={moveTask.bind(null, org)}
+        createItem={createOnCalendar.bind(null, org)}
+        spaceSlug={ctx.space.slug}
         setPrefs={setCalendarPrefs.bind(null, org)}
       />
       <PanelHost ctx={ctx} org={org} space={space} contentId={typeof query.content === "string" ? query.content : null} closeHref={close} />

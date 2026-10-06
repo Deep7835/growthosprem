@@ -1,13 +1,14 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, max } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { withOrg } from "@/db";
-import { contentItems, tasks, users } from "@/db/schema";
+import { contentItems, statuses, tasks, users } from "@/db/schema";
 import type { Issue } from "@/lib/publishing/rules";
 import { logActivity } from "@/server/activity";
 import { parseLocal, schedulePost } from "@/server/publishing";
+import { createTask } from "@/server/tasks";
 import { getOrgContext, requireSpaceAction } from "@/server/tenancy";
 
 export type MoveResult = { ok: true } | { ok: false; error?: string; issues?: Issue[] };
@@ -92,4 +93,41 @@ export async function setCalendarPrefs(org: string, prefs: { calendarColor?: "pl
   };
   await withOrg(ctx.org.id, (tx) => tx.update(users).set({ preferences: next }).where(eq(users.id, ctx.user.id)));
   revalidatePath(`/o/${org}`, "layout");
+}
+
+/**
+ * "+" on a day, or a click on an empty time (OV-05): a post planned for that time or a task due
+ * then, in the chosen space. Returns its id so the calendar can open it.
+ */
+export async function createOnCalendar(org: string, space: string, kind: "content" | "task", when: string, timeZone: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  if (!LOCAL.test(when)) return { ok: false, error: "That isn’t a valid time." };
+  try {
+    const ctx = await requireSpaceAction(org, space, "content.edit");
+    const at = parseLocal(when, zone(timeZone))!;
+    if (kind === "task") {
+      const task = await createTask(ctx, { title: "New task", dueAt: at });
+      revalidatePath(`/o/${org}`, "layout");
+      return { ok: true, id: task.id };
+    }
+    const id = await withOrg(ctx.org.id, async (tx) => {
+      const [first] = await tx
+        .select({ id: statuses.id })
+        .from(statuses)
+        .where(and(eq(statuses.spaceId, ctx.space.id), eq(statuses.appliesTo, "content"), eq(statuses.category, "not_started")))
+        .orderBy(asc(statuses.position))
+        .limit(1);
+      if (!first) throw new Error("This space has no Not started status. Add one in Statuses.");
+      const [{ top }] = await tx.select({ top: max(contentItems.position) }).from(contentItems).where(eq(contentItems.spaceId, ctx.space.id));
+      const [item] = await tx
+        .insert(contentItems)
+        .values({ orgId: ctx.org.id, spaceId: ctx.space.id, title: "Untitled post", statusId: first.id, scheduledAt: at, position: (top ?? 0) + 1, createdBy: ctx.user.id, autopost: ctx.space.autopostNewContent })
+        .returning();
+      await logActivity(tx, { orgId: ctx.org.id, spaceId: ctx.space.id, contentItemId: item.id, actor: { kind: "user", userId: ctx.user.id, name: ctx.user.name }, action: "created on the calendar" });
+      return item.id;
+    });
+    revalidatePath(`/o/${org}`, "layout");
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn’t create it." };
+  }
 }

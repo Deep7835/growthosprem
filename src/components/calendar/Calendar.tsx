@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { IssueList } from "@/components/content/Publishing";
+import { Icon } from "@/components/icons";
+import { toast } from "@/components/Toaster";
 import { PlacementChip, buttonClass } from "@/components/ui";
 import { isoDate } from "@/lib/analytics/time";
 import { PLATFORM_COLOR } from "@/lib/analytics/colors";
@@ -53,6 +55,10 @@ interface Props {
   platformColors?: Record<string, Partial<Record<Platform, string>>>;
   moveContent: Move;
   moveTask: Move;
+  /** OV-05: "+" on a day and clicking an empty time create a post or task there. */
+  createItem?: (space: string, kind: "content" | "task", when: string, timeZone: string) => Promise<{ ok: true; id: string } | { ok: false; error: string }>;
+  /** The space this calendar belongs to (space scope). */
+  spaceSlug?: string;
   setPrefs: (prefs: { calendarColor?: "platform" | "status"; weekStartsOn?: WeekStart }) => Promise<void>;
 }
 
@@ -72,6 +78,7 @@ export function Calendar(props: Props) {
   const [hover, setHover] = useState<{ event: CalendarEvent; rect: DOMRect } | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pending, start] = useTransition();
+  const [slot, setSlot] = useState<{ date: string; minutes: number; x: number; y: number } | null>(null);
 
   const href = (changes: Record<string, string | null>) => {
     const q = new URLSearchParams(props.query);
@@ -242,6 +249,27 @@ export function Calendar(props: Props) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-4 md:p-6">
       <Toolbar {...props} anchorTitle={title(view, anchor, weekStart)} href={href} prev={isoDate(shift(view, anchor, -1))} next={isoDate(shift(view, anchor, 1))} />
+      {slot && props.createItem && (
+        <SlotMenu
+          slot={slot}
+          spaces={scope === "space" ? [] : (props.spaces ?? []).filter((x) => x.selected)}
+          spaceSlug={props.spaceSlug}
+          pending={pending}
+          onClose={() => setSlot(null)}
+          onCreate={(kind, space) =>
+            start(async () => {
+              const r = await props.createItem!(space, kind, localValue(slot.date, slot.minutes), timeZone);
+              setSlot(null);
+              if (!r.ok) return void toast("error", kind === "task" ? "Couldn’t add the task" : "Couldn’t add the post", r.error);
+              const q = new URLSearchParams(scope === "space" ? props.query : { view, date: props.date });
+              q.delete("content");
+              q.delete("task");
+              q.set(kind === "task" ? "task" : "content", r.id);
+              router.push(scope === "space" ? `${basePath}?${q}` : `/o/${org}/s/${space}/calendar?${q}`, { scroll: false });
+            })
+          }
+        />
+      )}
 
       {(problem || pending) && (
         <div role={problem ? "alert" : "status"} className={`flex flex-col gap-2 rounded-xl px-4 py-3 text-sm ${problem ? "bg-danger-bg text-danger" : "bg-subtle text-muted"}`}>
@@ -295,8 +323,18 @@ export function Calendar(props: Props) {
                     <div
                       key={key}
                       {...dropProps(key, null)}
-                      className={`flex min-w-0 flex-col gap-1 border-b border-r border-line-soft p-1.5 ${inMonth ? "" : "bg-subtle/60"} ${isHint ? "bg-data-bg" : ""}`}
+                      className={`group/day relative flex min-w-0 flex-col gap-1 border-b border-r border-line-soft p-1.5 ${inMonth ? "" : "bg-subtle/60"} ${isHint ? "bg-data-bg" : ""} ${slot?.date === key ? "bg-accent-bg" : ""}`}
                     >
+                      {props.createItem && props.canMove && (
+                        <button
+                          type="button"
+                          aria-label={`Add on ${dayLabel(d, { weekday: "long", day: "numeric", month: "long" })}`}
+                          onClick={(ev) => setSlot({ date: key, minutes: 600, x: ev.clientX, y: ev.clientY })}
+                          className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md bg-accent text-ink opacity-0 shadow-sm transition-opacity hover:brightness-95 focus-visible:opacity-100 group-hover/day:opacity-100"
+                        >
+                          <Icon name="plus" size={14} />
+                        </button>
+                      )}
                       <Link
                         href={href({ view: "day", date: key })}
                         className={`grid size-6 place-items-center self-start rounded-full text-xs font-semibold ${key === props.today ? "bg-ink text-white" : inMonth ? "text-ink" : "text-faint"}`}
@@ -329,6 +367,8 @@ export function Calendar(props: Props) {
               momentLabel={momentLabel}
               dropProps={dropProps}
               render={(e) => chip(e)}
+              onSlot={props.createItem && props.canMove ? (date, minutes, x, y) => setSlot({ date, minutes, x, y }) : undefined}
+              slot={slot}
             />
           )}
 
@@ -553,6 +593,78 @@ function Select({ label, value, onChange, options }: { label: string; value: str
   );
 }
 
+/** What to add at a day or time: a post or a task, and in which space on the organisation calendar. */
+function SlotMenu({
+  slot,
+  spaces,
+  spaceSlug,
+  pending,
+  onClose,
+  onCreate,
+}: {
+  slot: { date: string; minutes: number; x: number; y: number };
+  spaces: { slug: string; name: string; color: string }[];
+  spaceSlug?: string;
+  pending: boolean;
+  onClose: () => void;
+  onCreate: (kind: "content" | "task", space: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [space, setSpace] = useState(spaceSlug ?? spaces[0]?.slug ?? "");
+  useEffect(() => {
+    const down = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && onClose();
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      onClose();
+    };
+    // After the click that opened it.
+    const t = setTimeout(() => document.addEventListener("pointerdown", down));
+    window.addEventListener("keydown", key, true);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("pointerdown", down);
+      window.removeEventListener("keydown", key, true);
+    };
+  }, [onClose]);
+  const left = typeof window === "undefined" ? slot.x : Math.max(8, Math.min(slot.x, window.innerWidth - 248));
+  const top = typeof window === "undefined" ? slot.y : Math.max(8, Math.min(slot.y + 8, window.innerHeight - 220));
+  const day = parseDate(slot.date)!;
+  return (
+    <div ref={ref} role="menu" aria-label="Add to the calendar" className="fixed z-50 w-60 rounded-xl border border-line bg-surface p-1.5 text-ink shadow-xl" style={{ left, top }}>
+      <p className="px-2 pb-1.5 pt-1 text-xs font-semibold text-muted">
+        {dayLabel(day, { weekday: "short", day: "numeric", month: "short" })} · {timeText(slot.minutes)}
+      </p>
+      {!spaceSlug && (
+        <label className="mb-1 block px-2 text-xs text-muted">
+          Space
+          <select value={space} onChange={(e) => setSpace(e.target.value)} className="mt-1 h-8 w-full rounded-md border border-line bg-surface px-1.5 text-sm text-ink">
+            {spaces.map((sp) => (
+              <option key={sp.slug} value={sp.slug}>
+                {sp.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {(["content", "task"] as const).map((kind) => (
+        <button
+          key={kind}
+          type="button"
+          role="menuitem"
+          disabled={pending || !space}
+          onClick={() => onCreate(kind, space)}
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-subtle disabled:opacity-50"
+        >
+          <Icon name={kind === "task" ? "check" : "board"} />
+          {kind === "task" ? "Task" : "Content"}
+          <span className="ml-auto text-xs text-muted">{kind === "task" ? "due then" : "planned then"}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function TimeGrid({
   days,
   today,
@@ -563,7 +675,11 @@ function TimeGrid({
   momentLabel,
   dropProps,
   render,
+  onSlot,
+  slot,
 }: {
+  onSlot?: (date: string, minutes: number, x: number, y: number) => void;
+  slot: { date: string; minutes: number } | null;
   momentLabel: (date: string) => ReactNode;
   days: ReturnType<typeof visibleDays>;
   today: string;
@@ -623,9 +739,18 @@ function TimeGrid({
               <div
                 key={key}
                 {...dropProps(key, minutesFor)}
-                className="relative border-l border-line-soft"
+                onClick={(ev) => {
+                  // Only a click on empty time, not on an item in it.
+                  if (!onSlot || ev.target !== ev.currentTarget) return;
+                  const rect = ev.currentTarget.getBoundingClientRect();
+                  onSlot(key, Math.min(minutesAt((ev.clientY - rect.top) / rect.height, 30), 23 * 60 + 30), ev.clientX, ev.clientY);
+                }}
+                className={`relative border-l border-line-soft ${onSlot ? "cursor-cell" : ""}`}
                 style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_PX - 1}px, var(--color-line-soft) ${HOUR_PX - 1}px, var(--color-line-soft) ${HOUR_PX}px)` }}
               >
+                {slot?.date === key && (
+                  <span aria-hidden className="pointer-events-none absolute inset-x-1 z-10 rounded bg-accent/30 ring-2 ring-accent" style={{ top: (slot.minutes / 60) * HOUR_PX, height: HOUR_PX / 2 }} />
+                )}
                 {key === today && (
                   <span aria-hidden className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-danger" style={{ top: (nowMinutes / 60) * HOUR_PX }} />
                 )}

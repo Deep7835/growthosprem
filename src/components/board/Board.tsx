@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useOptimistic, useTransition, useState } from "react";
 import { toast } from "@/components/Toaster";
-import { AvatarStack, PlacementChip, PublishState, StatusDot } from "@/components/ui";
+import { AvatarStack, PlacementChip, PublishState } from "@/components/ui";
 import { formatSchedule } from "@/lib/format";
 import type { CardItem } from "@/server/content";
 
@@ -68,14 +68,21 @@ export function Board({
                 const id = e.dataTransfer.getData("text/content-id");
                 if (id) drop(status.id, id);
               }}
-              className={`flex w-[272px] shrink-0 flex-col gap-2 rounded-xl p-2 transition-colors ${
-                dragOver === status.id ? "bg-line" : "bg-line-soft"
-              }`}
+              // Each column is tinted with its status colour, like the status chip at its top.
+              style={{ background: `color-mix(in srgb, ${status.color} ${dragOver === status.id ? 22 : 9}%, var(--color-surface))` }}
+              className="flex w-[272px] shrink-0 flex-col gap-2 rounded-xl p-2 ring-1 ring-inset ring-line-soft transition-colors"
             >
-              <header className="flex items-center gap-2 px-1.5 py-1 text-sm font-semibold">
-                <StatusDot color={status.color} />
-                {status.name}
-                <span className="font-normal text-muted">{column.length}</span>
+              <header className="flex items-center gap-2 px-1 py-1">
+                <span className="rounded px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white" style={{ background: status.color }}>
+                  {status.name}
+                </span>
+                <span className="text-xs font-medium text-muted">{column.length}</span>
+                <span className="flex-1" />
+                {canEdit && (
+                  <button type="button" aria-label={`Create content in ${status.name}`} onClick={() => startTransition(() => createAction(status.id))} className="grid size-6 place-items-center rounded-md text-muted hover:bg-surface hover:text-ink">
+                    +
+                  </button>
+                )}
               </header>
               {column.map((card) => (
                 <Link
@@ -119,7 +126,7 @@ export function Board({
                 <button
                   type="button"
                   onClick={() => startTransition(() => createAction(status.id))}
-                  className="rounded-lg px-2 py-2 text-left text-sm text-muted hover:bg-surface hover:text-ink"
+                  className="rounded-lg px-2 py-2 text-left text-sm text-muted hover:bg-surface/70 hover:text-ink"
                 >
                   + Create content
                 </button>
