@@ -88,7 +88,10 @@ export function Chat({
   approve,
   dismiss,
   undo,
+  initialPrompt = "",
 }: {
+  /** A message filled in for the person to send, e.g. from Notifications › Summarize. */
+  initialPrompt?: string;
   org: string;
   conversationId: string | null;
   turns: TurnView[];
@@ -103,7 +106,7 @@ export function Chat({
   undo: (actionId: string) => Promise<{ kept: number }>;
 }) {
   const router = useRouter();
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialPrompt);
   const [scope, setScope] = useState(initialScope);
   const [reasoning, setReasoning] = useState<ReasoningLevel>("balanced");
   const [live, setLive] = useState<Live | null>(null);
@@ -280,6 +283,7 @@ export function Chat({
             Message AI Copilot
           </label>
           <textarea
+            autoFocus={Boolean(initialPrompt)}
             id="copilot-input"
             rows={2}
             value={input}

@@ -253,6 +253,19 @@ drizzle/                  SQL migrations
 - Notifications (TK-03): assigned, comments and @mentions on tasks, due in the next day, overdue.
 - Not yet: task templates you can edit per space, recurring tasks, unassigning a removed member's tasks.
 
+### Overview dashboard (`/o/[org]/overview`, PRD 6.2, OV-01 to OV-03)
+
+- "{Organisation} overview" with cards each person arranges (`src/components/overview/Dashboard.tsx`, data from
+  `src/server/overview.ts`): Setup checklist (until done), Recent activity (posts and notes), Content by space,
+  Content by status, Upcoming items (posts and tasks), Tasks by status, Tasks by assignee, Assigned to me (posts and
+  tasks), Overdue (posts past their date that aren't completed or closed, and overdue tasks), Waiting for client
+  approval, Publishing overview and Space breakdown. Items show as cards with the space, date, status, people and
+  platform logos.
+- Drag a card by its title to move it; its "···" menu makes it wider or narrower, moves it to the top or hides it;
+  Cards chooses which show; Reset goes back to the default. Saved per person (`users.preferences.overview`).
+- Filters (spaces) and a date range (7, 14 or 30 days, for Upcoming and Recent) live in the URL; + Create makes a post,
+  task or note in a chosen space.
+
 ### Notifications (`/o/[org]/notifications`, PRD 6.18, NT-01 to NT-04, TK-03, UI-02)
 
 - Notifications page (NT-01): Primary and Cleared tabs, search, filters by type and by space, unread only, mark as read
@@ -273,6 +286,9 @@ drizzle/                  SQL migrations
   subscriptions the browser has given up. Production needs `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`
   (`npx web-push generate-vapid-keys`); development generates a pair into `.data/vapid.json`.
 - Not yet: WhatsApp and Slack (NT-05, V2), workflow notifications (V2).
+- Filters: a popover with type chips (several at once, each with how many there are) and space chips, kept in the
+  URL. Summarize opens the AI Copilot with "Summarize my recent notifications…" filled in; the Copilot reads them with
+  its `list_notifications` tool. The Cleared tab has Delete all, which removes cleared notifications for good.
 
 ### App frame and navigation
 

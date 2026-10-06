@@ -8,7 +8,7 @@ export const metadata = { title: "AI Copilot" };
 
 export default async function CopilotHome({ params, searchParams }: PageProps<"/o/[org]/ai">) {
   const { org } = await params;
-  const { space } = await searchParams;
+  const { space, prompt } = await searchParams;
   const [ctx, spaces] = await Promise.all([getOrgContext(org), listVisibleSpaces(org)]);
   const used = await creditsUsedThisMonth(ctx.org.id);
   const initial = typeof space === "string" && spaces.some((s) => s.slug === space) ? space : spaces.length === 1 ? spaces[0].slug : "org";
@@ -27,6 +27,7 @@ export default async function CopilotHome({ params, searchParams }: PageProps<"/
       approve={approveAiAction.bind(null, org)}
       dismiss={dismissAiAction.bind(null, org)}
       undo={undoAiAction.bind(null, org)}
+      initialPrompt={typeof prompt === "string" ? prompt.slice(0, 500) : ""}
     />
   );
 }

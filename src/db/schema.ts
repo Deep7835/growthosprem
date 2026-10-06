@@ -88,6 +88,13 @@ export const organizations = pgTable("organizations", {
 });
 
 // Global identities; tenant access is granted through memberships.
+/** A person's Overview dashboard: widget order, hidden widgets and widths (1 or 2 columns). */
+export interface OverviewLayout {
+  order?: string[];
+  hidden?: string[];
+  sizes?: Record<string, 1 | 2>;
+}
+
 /** A person's saved Table view for one space (VW-02): columns, filters and sort. */
 export interface TableView {
   columns?: string[];
@@ -103,7 +110,7 @@ export const users = pgTable("users", {
   clerkUserId: text("clerk_user_id").unique(),
   // Profile › calendar preferences (PRD 6.20): colour items by platform or status, first day of the week.
   preferences: jsonb("preferences")
-    .$type<{ calendarColor?: "platform" | "status"; weekStartsOn?: 0 | 6; tables?: Record<string, TableView> }>()
+    .$type<{ calendarColor?: "platform" | "status"; weekStartsOn?: 0 | 6; tables?: Record<string, TableView>; overview?: OverviewLayout }>()
     .notNull()
     .default({}),
   createdAt: createdAt(),

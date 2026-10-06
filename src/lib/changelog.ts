@@ -14,6 +14,13 @@ export interface Change {
 
 export const CHANGELOG: Change[] = [
   {
+    id: "2026-10-06-dashboard",
+    date: "2026-10-06",
+    tags: ["new", "improved"],
+    title: "A dashboard you can arrange",
+    body: "Overview is now a set of cards: recent activity, upcoming posts and tasks, what's assigned to you, what's overdue, publishing and every space at a glance. Drag them into your order, make them wider or narrower, hide the ones you don't need, and filter by space and dates. Notifications get filters by type and space, a Summarize button for the AI Copilot, and Delete all for cleared ones.",
+  },
+  {
     id: "2026-10-06-post-window",
     date: "2026-10-06",
     tags: ["new", "improved"],

@@ -2,14 +2,16 @@ import "server-only";
 import { and, count, desc, eq, ilike, inArray, isNotNull, isNull, notInArray, or, type SQL } from "drizzle-orm";
 import { withOrg } from "@/db";
 import { notificationSettings, notifications, spaces } from "@/db/schema";
-import { cleanPrefs, effectivePrefs, kindsOf, TYPES, type NotificationType, type TypePrefs } from "@/lib/notifications";
+import { cleanPrefs, effectivePrefs, kindsOf, TYPES, typeOf, type NotificationType, type TypePrefs } from "@/lib/notifications";
 import type { OrgContext } from "./tenancy";
 
 export interface NotificationFilters {
   tab: "primary" | "cleared";
   q: string;
-  type: NotificationType | "";
-  space: string;
+  /** Any of these types; all when empty. */
+  types: NotificationType[];
+  /** Any of these space ids ("none" for organisation-wide); all when empty. */
+  spaces: string[];
   unread: boolean;
 }
 
@@ -17,12 +19,12 @@ export const PAGE_SIZE = 50;
 
 export function readFilters(query: Record<string, string | string[] | undefined>): NotificationFilters & { limit: number } {
   const one = (k: string) => (typeof query[k] === "string" ? (query[k] as string) : "");
-  const type = one("type");
+  const list = (k: string) => one(k).split(",").filter(Boolean).slice(0, 20);
   return {
     tab: one("tab") === "cleared" ? "cleared" : "primary",
     q: one("q").trim().slice(0, 100),
-    type: TYPES.some((t) => t.id === type) ? (type as NotificationType) : "",
-    space: one("space"),
+    types: list("type").filter((t): t is NotificationType => TYPES.some((x) => x.id === t)),
+    spaces: list("space").filter((x) => x === "none" || /^[0-9a-f-]{36}$/.test(x)),
     unread: one("unread") === "1",
     limit: Math.min(500, Math.max(PAGE_SIZE, Number(one("limit")) || PAGE_SIZE)),
   };
@@ -38,9 +40,10 @@ export async function listNotifications(ctx: OrgContext, f: NotificationFilters 
     where.push(or(ilike(notifications.title, like), ilike(notifications.body, like)));
   }
   // System covers every kind without a type of its own.
-  if (f.type === "system") where.push(notInArray(notifications.kind, TYPES.filter((t) => t.id !== "system").flatMap((t) => kindsOf(t.id))));
-  else if (f.type) where.push(inArray(notifications.kind, kindsOf(f.type)));
-  if (f.space) where.push(f.space === "none" ? isNull(notifications.spaceId) : eq(notifications.spaceId, f.space));
+  const typed = (t: NotificationType) => (t === "system" ? notInArray(notifications.kind, TYPES.filter((x) => x.id !== "system").flatMap((x) => kindsOf(x.id))) : inArray(notifications.kind, kindsOf(t)));
+  const byType = f.types.length ? or(...f.types.map(typed)) : undefined;
+  const ids = f.spaces.filter((x) => x !== "none");
+  if (f.spaces.length) where.push(or(f.spaces.includes("none") ? isNull(notifications.spaceId) : undefined, ids.length ? inArray(notifications.spaceId, ids) : undefined));
   if (f.unread) where.push(isNull(notifications.readAt));
   // A space the person was removed from no longer shows its notifications.
   where.push(visibleSpaceIds.length ? or(isNull(notifications.spaceId), inArray(notifications.spaceId, visibleSpaceIds)) : isNull(notifications.spaceId));
@@ -50,15 +53,19 @@ export async function listNotifications(ctx: OrgContext, f: NotificationFilters 
       .select({ n: notifications, spaceName: spaces.name, spaceColor: spaces.avatarColor })
       .from(notifications)
       .leftJoin(spaces, eq(spaces.id, notifications.spaceId))
-      .where(and(...where))
+      .where(and(...where, byType))
       .orderBy(desc(notifications.createdAt))
       .limit(f.limit + 1);
+    // How many of each type the other filters leave, for the Filters chips.
+    const kinds = await tx.select({ kind: notifications.kind, n: count() }).from(notifications).where(and(...where)).groupBy(notifications.kind);
+    const typeCounts: Partial<Record<NotificationType, number>> = {};
+    for (const k of kinds) typeCounts[typeOf(k.kind)] = (typeCounts[typeOf(k.kind)] ?? 0) + k.n;
     const [[{ primary }], [{ unread }], [{ cleared }]] = await Promise.all([
       tx.select({ primary: count() }).from(notifications).where(and(mine(ctx), isNull(notifications.clearedAt))),
       tx.select({ unread: count() }).from(notifications).where(and(mine(ctx), isNull(notifications.clearedAt), isNull(notifications.readAt))),
       tx.select({ cleared: count() }).from(notifications).where(and(mine(ctx), isNotNull(notifications.clearedAt))),
     ]);
-    return { rows: rows.slice(0, f.limit), more: rows.length > f.limit, counts: { primary, unread, cleared } };
+    return { rows: rows.slice(0, f.limit), more: rows.length > f.limit, counts: { primary, unread, cleared }, typeCounts };
   });
 }
 
@@ -99,6 +106,24 @@ export async function setCleared(ctx: OrgContext, ids: string[] | "all", cleared
       .update(notifications)
       .set(cleared ? { clearedAt: now, readAt: now } : { clearedAt: null })
       .where(and(ownRows(ctx, ids === "all" ? undefined : ids), cleared ? isNull(notifications.clearedAt) : isNotNull(notifications.clearedAt))),
+  );
+}
+
+/** Cleared tab › Delete all: removes cleared notifications for good. */
+export async function deleteCleared(ctx: OrgContext) {
+  await withOrg(ctx.org.id, (tx) => tx.delete(notifications).where(and(mine(ctx), isNotNull(notifications.clearedAt))));
+}
+
+/** For the AI Copilot's summary: the person's latest notifications, unread first (Primary tab). */
+export async function recentForSummary(orgId: string, userId: string, limit = 40) {
+  return withOrg(orgId, (tx) =>
+    tx
+      .select({ title: notifications.title, body: notifications.body, kind: notifications.kind, href: notifications.href, readAt: notifications.readAt, createdAt: notifications.createdAt, spaceName: spaces.name })
+      .from(notifications)
+      .leftJoin(spaces, eq(spaces.id, notifications.spaceId))
+      .where(and(eq(notifications.userId, userId), eq(notifications.inApp, true), isNull(notifications.clearedAt)))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit),
   );
 }
 

@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { Icon } from "@/components/icons";
+import { Popover } from "@/components/Popover";
+import { toast } from "@/components/Toaster";
 import { buttonClass } from "@/components/ui";
 import type { NotificationType } from "@/lib/notifications";
 import { TypeIcon } from "./TypeIcon";
@@ -21,7 +24,9 @@ export interface CenterItem {
   day: string;
 }
 
-type Filters = { tab: "primary" | "cleared"; q: string; type: string; space: string; unread: boolean; limit: number };
+type Filters = { tab: "primary" | "cleared"; q: string; types: string[]; spaces: string[]; unread: boolean; limit: number };
+
+const SUMMARY_PROMPT = "Summarize my recent notifications and tell me if there are any actions I need to take.";
 type Change = { ids: string[] | "all"; read?: boolean; cleared?: boolean };
 
 /** NT-01: Primary and Cleared tabs, search, filters by type and space, read, clear and clear all. */
@@ -29,12 +34,15 @@ export function NotificationCenter(props: {
   org: string;
   filters: Filters;
   counts: { primary: number; unread: number; cleared: number };
+  /** How many of each type the other filters leave. */
+  typeCounts: Partial<Record<NotificationType, number>>;
   more: boolean;
   types: { id: NotificationType; label: string }[];
-  spaces: { id: string; name: string }[];
+  spaces: { id: string; name: string; color: string }[];
   items: CenterItem[];
   setRead: (ids: string[] | "all", read: boolean) => Promise<void>;
   setCleared: (ids: string[] | "all", cleared: boolean) => Promise<void>;
+  deleteCleared: () => Promise<void>;
 }) {
   const { filters, counts } = props;
   const router = useRouter();
@@ -53,8 +61,8 @@ export function NotificationCenter(props: {
     const params = new URLSearchParams();
     if (next.tab === "cleared") params.set("tab", "cleared");
     if (next.q) params.set("q", next.q);
-    if (next.type) params.set("type", next.type);
-    if (next.space) params.set("space", next.space);
+    if (next.types.length) params.set("type", next.types.join(","));
+    if (next.spaces.length) params.set("space", next.spaces.join(","));
     if (next.unread) params.set("unread", "1");
     if (patch.limit) params.set("limit", String(next.limit));
     const s = params.toString();
@@ -77,7 +85,10 @@ export function NotificationCenter(props: {
     });
 
   const cleared = filters.tab === "cleared";
-  const filtered = Boolean(filters.q || filters.type || filters.space || filters.unread);
+  const filtered = Boolean(filters.q || filters.types.length || filters.spaces.length || filters.unread);
+  const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const [spaceQuery, setSpaceQuery] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const unreadShown = items.filter((n) => !n.read).length;
   // With filters on, the bulk buttons act on what's shown.
   const scope: string[] | "all" = filtered ? items.map((n) => n.id) : "all";
@@ -129,23 +140,73 @@ export function NotificationCenter(props: {
           </svg>
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search notifications" aria-label="Search notifications" className="min-w-0 flex-1 bg-transparent outline-none" />
         </label>
-        <select aria-label="Type" value={filters.type} onChange={(e) => go({ type: e.target.value })} className="h-9 rounded-lg border border-line bg-surface px-2 text-sm">
-          <option value="">All types</option>
-          {props.types.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <select aria-label="Space" value={filters.space} onChange={(e) => go({ space: e.target.value })} className="h-9 rounded-lg border border-line bg-surface px-2 text-sm">
-          <option value="">All spaces</option>
-          {props.spaces.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-          <option value="none">Organisation-wide</option>
-        </select>
+        <Popover
+          label="Filters"
+          buttonClassName={`${buttonClass("secondary", "sm")} h-9 gap-1.5`}
+          panelClassName="right-0 top-full mt-1 w-[min(420px,90vw)]"
+          button={
+            <>
+              <Icon name="menu" size={15} /> Filters{filters.types.length + filters.spaces.length ? ` · ${filters.types.length + filters.spaces.length}` : ""}
+            </>
+          }
+        >
+          {() => (
+            <div className="flex flex-col gap-3 p-2">
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted">Types</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {props.types.map((t) => {
+                    const on = filters.types.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => go({ types: toggle(filters.types, t.id) })}
+                        className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-[13px] ${on ? "border-ink bg-subtle font-semibold" : "border-line hover:bg-subtle"}`}
+                      >
+                        <TypeIcon type={t.id} size={20} />
+                        <span className="min-w-0 flex-1 truncate">{t.label}</span>
+                        <span className="rounded-full bg-line-soft px-1.5 text-[11px] text-muted">{props.typeCounts[t.id] ?? 0}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted">Spaces</p>
+                {props.spaces.length > 5 && (
+                  <input value={spaceQuery} onChange={(e) => setSpaceQuery(e.target.value)} placeholder="Search spaces…" aria-label="Search spaces" className="mb-1.5 h-8 w-full rounded-lg bg-line-soft px-2 text-sm outline-none" />
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {[...props.spaces.filter((sp) => !spaceQuery.trim() || sp.name.toLowerCase().includes(spaceQuery.trim().toLowerCase())), { id: "none", name: "Organisation-wide", color: "#E4E3DC" }].map((sp) => {
+                    const on = filters.spaces.includes(sp.id);
+                    return (
+                      <button
+                        key={sp.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => go({ spaces: toggle(filters.spaces, sp.id) })}
+                        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] ${on ? "border-ink bg-ink text-white" : "border-line text-ink-2 hover:bg-subtle"}`}
+                      >
+                        <span aria-hidden className="size-2 rounded-full" style={{ background: sp.color }} />
+                        {sp.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {(filters.types.length > 0 || filters.spaces.length > 0) && (
+                <button type="button" onClick={() => go({ types: [], spaces: [] })} className="self-start text-xs font-semibold text-muted hover:text-ink">
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+        </Popover>
+        <Link href={`/o/${props.org}/ai?prompt=${encodeURIComponent(SUMMARY_PROMPT)}`} className={`${buttonClass("secondary", "sm")} h-9 gap-1.5 border-accent/60 text-accent-ink`}>
+          <Icon name="sparkles" size={15} /> Summarize
+        </Link>
         {!cleared && (
           <label className="flex h-9 items-center gap-2 rounded-lg px-2 text-sm">
             <input type="checkbox" checked={filters.unread} onChange={(e) => go({ unread: e.target.checked })} />
@@ -171,6 +232,35 @@ export function NotificationCenter(props: {
             ""
           )}
         </p>
+        {cleared && items.length > 0 && !filtered && (
+          <div className="flex items-center gap-2">
+            {confirmDelete ? (
+              <>
+                <span className="text-sm text-danger">Delete {counts.cleared} cleared notification{counts.cleared === 1 ? "" : "s"} for good?</span>
+                <button type="button" onClick={() => setConfirmDelete(false)} className={buttonClass("ghost", "sm")}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    change({ ids: "all", cleared: false }, async () => {
+                      await props.deleteCleared();
+                      setConfirmDelete(false);
+                      toast("success", "Cleared notifications deleted");
+                    })
+                  }
+                  className="h-8 rounded-lg bg-danger px-3 text-[13px] font-semibold text-white"
+                >
+                  Delete
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setConfirmDelete(true)} className={`${buttonClass("secondary", "sm")} gap-1.5 text-danger`}>
+                <Icon name="trash" size={14} /> Delete all
+              </button>
+            )}
+          </div>
+        )}
         {!cleared && items.length > 0 && (
           <div className="flex gap-2">
             {(filtered ? unreadShown > 0 : counts.unread > 0) && (
@@ -201,7 +291,7 @@ export function NotificationCenter(props: {
           ) : filtered ? (
             <>
               <strong>No notifications match these filters</strong>
-              <button type="button" onClick={() => { setQ(""); go({ q: "", type: "", space: "", unread: false }); }} className={buttonClass("secondary", "sm")}>
+              <button type="button" onClick={() => { setQ(""); go({ q: "", types: [], spaces: [], unread: false }); }} className={buttonClass("secondary", "sm")}>
                 Clear filters
               </button>
             </>

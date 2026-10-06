@@ -7,6 +7,7 @@ import { aiActions, brandBrains, contentItems, placements, socialAccounts, statu
 import { formatSchedule } from "@/lib/format";
 import { getSpaceAnalytics } from "@/server/analytics";
 import { getSpaceAudit } from "@/server/audit";
+import { recentForSummary } from "@/server/notifications";
 import { listVisibleSpaces, spaceContextForRoute } from "@/server/tenancy";
 import { AnalyticsInput, ListPostsInput, ProposeCaptions, ProposeDraftPosts, ProposeIdeas, SpaceInput } from "./schemas";
 
@@ -160,6 +161,12 @@ export const COPILOT_TOOLS: Tool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "list_notifications",
+    description:
+      "Lists the person's latest notifications (not cleared), newest first, with whether each is read, its space and a link. Use it to summarise what needs their attention and which actions they should take.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
 ];
 
 export const PROPOSAL_TOOLS = new Set(["propose_draft_posts", "propose_captions", "propose_ideas"]);
@@ -173,6 +180,7 @@ export const TOOL_LABELS: Record<string, string> = {
   propose_draft_posts: "Preparing draft posts",
   propose_captions: "Preparing captions",
   propose_ideas: "Collecting ideas",
+  list_notifications: "Reading your notifications",
 };
 
 class ToolError extends Error {}
@@ -191,6 +199,17 @@ const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 export async function runTool(scope: CopilotScope, name: string, input: unknown, toolUseId: string): Promise<{ content: string; isError?: boolean; actionId?: string }> {
   try {
     switch (name) {
+      case "list_notifications": {
+        const [rows, visible] = await Promise.all([recentForSummary(scope.orgId, scope.userId), listVisibleSpaces(scope.orgSlug)]);
+        const names = new Set(visible.map((v) => v.name));
+        return {
+          content: JSON.stringify(
+            rows
+              .filter((r) => !r.spaceName || names.has(r.spaceName))
+              .map((r) => ({ title: r.title, body: r.body, kind: r.kind, space: r.spaceName, unread: !r.readAt, at: r.createdAt.toISOString(), link: r.href })),
+          ),
+        };
+      }
       case "list_spaces": {
         const spaces = await listVisibleSpaces(scope.orgSlug);
         return { content: JSON.stringify(spaces.map((s) => ({ slug: s.slug, name: s.name, timezone: s.timezone }))) };

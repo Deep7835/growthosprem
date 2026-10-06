@@ -7,7 +7,7 @@ import { getSystemDb } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
 import { cleanPrefs } from "@/lib/notifications";
 import { pushTo } from "@/notifications/push";
-import { applyToSpaces, resetToDefault, saveDigest, saveTypes, setCleared, setRead } from "@/server/notifications";
+import { applyToSpaces, deleteCleared, resetToDefault, saveDigest, saveTypes, setCleared, setRead } from "@/server/notifications";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
 
 const ids = z.union([z.literal("all"), z.array(z.uuid()).min(1).max(500)]);
@@ -30,6 +30,12 @@ export async function setReadState(org: string, which: string[] | "all", read: b
 export async function setClearedState(org: string, which: string[] | "all", cleared: boolean) {
   const ctx = await getOrgContext(org);
   await setCleared(ctx, ids.parse(which), z.boolean().parse(cleared));
+  done(org);
+}
+
+/** Cleared tab › Delete all (for good). */
+export async function deleteClearedNotifications(org: string) {
+  await deleteCleared(await getOrgContext(org));
   done(org);
 }
 

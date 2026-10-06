@@ -1,24 +1,22 @@
-import { and, asc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
-import Link from "next/link";
+import { isNotNull } from "drizzle-orm";
 import { withOrg } from "@/db";
-import { contentItems, memberships, socialAccounts, statuses } from "@/db/schema";
-import { EmptyState, StatusDot } from "@/components/ui";
-import { formatSchedule } from "@/lib/format";
-import { formatDue } from "@/lib/tasks";
-import { overviewTasks } from "@/server/tasks";
+import { memberships, socialAccounts } from "@/db/schema";
+import { Dashboard } from "@/components/overview/Dashboard";
+import { EmptyState } from "@/components/ui";
+import { loadDashboard } from "@/server/overview";
 import { getOrgContext, listVisibleSpaces } from "@/server/tenancy";
+import { quickCreate } from "../s/[space]/actions";
+import { saveOverviewLayout } from "./actions";
 
 export const metadata = { title: "Overview" };
 
-const CATEGORY_LABEL = { not_started: "Not started", active: "Active", completed: "Completed", closed: "Closed" } as const;
-
-export default async function OverviewPage({ params }: PageProps<"/o/[org]/overview">) {
+/** The organisation dashboard (PRD 6.2): cards each person can arrange, filtered by space and time. */
+export default async function OverviewPage({ params, searchParams }: PageProps<"/o/[org]/overview">) {
   const { org } = await params;
+  const query = await searchParams;
   const [ctx, spaces] = await Promise.all([getOrgContext(org), listVisibleSpaces(org)]);
-  const spaceIds = spaces.map((s) => s.id);
-  const spaceById = new Map(spaces.map((s) => [s.id, s]));
 
-  if (spaceIds.length === 0) {
+  if (spaces.length === 0) {
     return (
       <div className="p-6">
         <EmptyState title="No spaces yet" body="Ask an Admin to add you to a client space, or create one if you are an Admin." />
@@ -26,218 +24,48 @@ export default async function OverviewPage({ params }: PageProps<"/o/[org]/overv
     );
   }
 
-  const data = await withOrg(ctx.org.id, async (tx) => {
-    const [byCategory, waiting, upcoming, accounts, members] = await Promise.all([
-      tx
-        .select({ category: statuses.category, count: sql<number>`count(*)::int` })
-        .from(contentItems)
-        .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-        .where(and(inArray(contentItems.spaceId, spaceIds), isNull(contentItems.archivedAt)))
-        .groupBy(statuses.category),
-      tx
-        .select({ id: contentItems.id, title: contentItems.title, spaceId: contentItems.spaceId, scheduledAt: contentItems.scheduledAt })
-        .from(contentItems)
-        .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-        .where(and(inArray(contentItems.spaceId, spaceIds), eq(statuses.reviewRole, "in_review"), isNull(contentItems.archivedAt)))
-        .orderBy(asc(contentItems.scheduledAt)),
-      tx
-        .select({
-          id: contentItems.id,
-          title: contentItems.title,
-          spaceId: contentItems.spaceId,
-          scheduledAt: contentItems.scheduledAt,
-          statusName: statuses.name,
-          statusColor: statuses.color,
-        })
-        .from(contentItems)
-        .innerJoin(statuses, eq(statuses.id, contentItems.statusId))
-        .where(and(inArray(contentItems.spaceId, spaceIds), isNotNull(contentItems.scheduledAt), gte(contentItems.scheduledAt, new Date()), isNull(contentItems.archivedAt)))
-        .orderBy(asc(contentItems.scheduledAt))
-        .limit(8),
+  const wanted = typeof query.spaces === "string" ? query.spaces.split(",") : [];
+  const chosen = spaces.filter((s) => wanted.includes(s.slug)).map((s) => s.slug);
+  const inView = chosen.length ? spaces.filter((s) => chosen.includes(s.slug)) : spaces;
+  const range = [7, 14, 30].includes(Number(query.range)) ? Number(query.range) : 14;
+
+  const [data, setup] = await Promise.all([
+    loadDashboard(
+      ctx.org.id,
+      inView.map((s) => s.id),
+      ctx.user.id,
+      { now: new Date(ctx.requestTime), rangeDays: range },
+    ),
+    withOrg(ctx.org.id, async (tx) => {
       // Seeded sample accounts don't count: only a real connection completes the step.
-      tx.select({ id: socialAccounts.id }).from(socialAccounts).where(isNotNull(socialAccounts.accessTokenEnc)).limit(1),
-      tx.select({ id: memberships.id }).from(memberships),
-    ]);
-    return { byCategory, waiting, upcoming, hasAccount: accounts.length > 0, memberCount: members.length };
-  });
+      const [accounts, members] = await Promise.all([tx.select({ id: socialAccounts.id }).from(socialAccounts).where(isNotNull(socialAccounts.accessTokenEnc)).limit(1), tx.select({ id: memberships.id }).from(memberships)]);
+      return { hasAccount: accounts.length > 0, memberCount: members.length };
+    }),
+  ]);
 
   const checklist = [
-    { label: "Connect a social account", done: data.hasAccount, href: spaces[0] ? `/o/${org}/s/${spaces[0].slug}/settings/accounts` : undefined },
-    { label: "Invite a teammate", done: data.memberCount > 1, href: `/o/${org}/settings/members` },
-    { label: "Build Brand Brain", done: false },
-    { label: "Schedule a first post", done: data.upcoming.length > 0 },
+    { label: "Connect a social account", done: setup.hasAccount, href: `/o/${org}/s/${spaces[0].slug}/settings/accounts` },
+    { label: "Invite a teammate", done: setup.memberCount > 1, href: `/o/${org}/settings/members?invite=1` },
+    { label: "Build Brand Brain", done: false, href: `/o/${org}/s/${spaces[0].slug}/brand` },
+    { label: "Schedule a first post", done: data.hasScheduled },
   ];
-  const doneCount = checklist.filter((c) => c.done).length;
-  const work = await overviewTasks(ctx.org.id, spaceIds, ctx.user.id, new Date(ctx.requestTime));
-  const taskLink = (spaceId: string, id: string) => `/o/${org}/s/${spaceById.get(spaceId)?.slug}/board?task=${id}`;
-  const statusTotal = Math.max(1, ...work.byStatus.map((b) => b.count));
-  const taskList = (rows: typeof work.overdue, empty: string) =>
-    rows.length === 0 ? (
-      <p className="mt-3 text-sm text-muted">{empty}</p>
-    ) : (
-      <ul className="mt-3 flex flex-col divide-y divide-line-soft">
-        {rows.map((t) => (
-          <li key={t.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-            <Link href={taskLink(t.spaceId, t.id)} className="min-w-0 truncate font-semibold hover:underline">
-              {t.title}
-            </Link>
-            <span className="shrink-0 text-right text-muted">
-              {t.dueAt ? formatDue(t.dueAt, spaceById.get(t.spaceId)?.timezone ?? ctx.org.timezone) : "No due date"}
-              <span className="block text-xs">{spaceById.get(t.spaceId)?.name}{t.assignee ? ` · ${t.assignee}` : ""}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    );
-  const link = (spaceId: string, id: string) => `/o/${org}/s/${spaceById.get(spaceId)?.slug}/board?content=${id}`;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-5 p-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Good to see you, {ctx.user.name}</h1>
-        <p className="mt-1 text-muted">What’s happening across {spaces.length === 1 ? "your space" : `your ${spaces.length} spaces`} right now.</p>
-      </div>
-
-      {doneCount < checklist.length && (
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="font-semibold">
-            Setup checklist <span className="font-normal text-muted">· {doneCount} of {checklist.length} done</span>
-          </h2>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {checklist.map((c) => (
-              <li key={c.label} className={`flex items-center gap-2 text-sm ${c.done ? "text-muted line-through" : ""}`}>
-                <span className={`grid size-5 place-items-center rounded-full text-[11px] ${c.done ? "bg-success-bg text-success" : "border border-line"}`}>
-                  {c.done ? "✓" : ""}
-                </span>
-                {"href" in c && c.href && !c.done ? (
-                  <Link href={c.href} className="underline">
-                    {c.label}
-                  </Link>
-                ) : (
-                  c.label
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {(Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[]).map((cat) => (
-          <div key={cat} className="rounded-xl border border-line bg-surface p-4">
-            <p className="text-sm text-muted">{CATEGORY_LABEL[cat]}</p>
-            <p className="font-display text-3xl font-bold">{data.byCategory.find((b) => b.category === cat)?.count ?? 0}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="font-semibold">Waiting for client approval</h2>
-          {data.waiting.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">Nothing is waiting on a client.</p>
-          ) : (
-            <ul className="mt-3 flex flex-col divide-y divide-line-soft">
-              {data.waiting.map((w) => (
-                <li key={w.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                  <Link href={link(w.spaceId, w.id)} className="font-semibold hover:underline">
-                    {w.title}
-                  </Link>
-                  <span className="shrink-0 text-muted">{spaceById.get(w.spaceId)?.name}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="font-semibold">Upcoming</h2>
-          {data.upcoming.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">Nothing scheduled yet.</p>
-          ) : (
-            <ul className="mt-3 flex flex-col divide-y divide-line-soft">
-              {data.upcoming.map((u) => (
-                <li key={u.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <StatusDot color={u.statusColor} />
-                    <Link href={link(u.spaceId, u.id)} className="truncate font-semibold hover:underline">
-                      {u.title}
-                    </Link>
-                  </span>
-                  <span className="shrink-0 text-muted">
-                    {formatSchedule(u.scheduledAt, spaceById.get(u.spaceId)?.timezone ?? ctx.org.timezone)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-
-      {/* Task widgets (TK-02, OV-03) */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="font-semibold">Assigned to me</h2>
-          {taskList(work.mine, "No open tasks for you.")}
-        </section>
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="font-semibold">
-            Overdue tasks {work.overdue.length > 0 && <span className="font-normal text-danger">· {work.overdue.length}</span>}
-          </h2>
-          {taskList(work.overdue, "Nothing overdue.")}
-        </section>
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="font-semibold">Tasks by status</h2>
-          {work.byStatus.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">No tasks yet.</p>
-          ) : (
-            <ul className="mt-3 flex flex-col gap-2.5">
-              {work.byStatus.map((b) => (
-                <li key={b.name} className="grid grid-cols-[110px_1fr_32px] items-center gap-3 text-sm">
-                  <span className="flex items-center gap-2 truncate">
-                    <StatusDot color={b.color} />
-                    {b.name}
-                  </span>
-                  <span className="h-2 overflow-hidden rounded-full bg-line-soft" aria-hidden>
-                    <span className="block h-full rounded-full" style={{ width: `${(b.count / statusTotal) * 100}%`, background: b.color }} />
-                  </span>
-                  <span className="text-right font-semibold tabular-nums">{b.count}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section className="rounded-2xl border border-line bg-surface p-5">
-          <h2 className="font-semibold">Open tasks by person</h2>
-          {work.byAssignee.length === 0 ? (
-            <p className="mt-3 text-sm text-muted">Everyone’s clear.</p>
-          ) : (
-            <table className="mt-3 w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-muted">
-                  <th scope="col" className="pb-1.5 font-semibold">
-                    Person
-                  </th>
-                  <th scope="col" className="pb-1.5 text-right font-semibold">
-                    Open
-                  </th>
-                  <th scope="col" className="pb-1.5 text-right font-semibold">
-                    Overdue
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-soft">
-                {work.byAssignee.map((a) => (
-                  <tr key={a.name}>
-                    <td className="py-2">{a.name}</td>
-                    <td className="py-2 text-right tabular-nums">{a.open}</td>
-                    <td className={`py-2 text-right tabular-nums ${a.overdue ? "font-semibold text-danger" : "text-muted"}`}>{a.overdue}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-      </div>
-    </div>
+    <Dashboard
+      org={org}
+      orgName={ctx.org.name}
+      userName={ctx.user.name}
+      spaces={spaces.map((s) => ({ id: s.id, slug: s.slug, name: s.name, color: s.avatarColor, timezone: s.timezone }))}
+      chosen={chosen}
+      rangeDays={range}
+      now={ctx.requestTime}
+      data={data}
+      checklist={checklist}
+      layout={ctx.user.preferences.overview ?? {}}
+      saveLayout={saveOverviewLayout.bind(null, org)}
+      quickCreate={quickCreate.bind(null, org)}
+      // Everyone in a space can create posts, tasks and notes there.
+      canCreate
+    />
   );
 }
